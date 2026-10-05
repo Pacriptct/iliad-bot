@@ -1,6 +1,8 @@
 // Messenger pigeons between Discord and the game.
-//   Game -> Discord : pigeon_out events are DMed to the recipient if their
-//                     account is linked (with a Reply button).
+//   Every letter lands in the recipient's in-game letterbox, and, if their
+//   account is linked, also in their Discord DMs with a Reply button, no
+//   matter whether it was written in game or from Discord.
+//   Game -> Discord : pigeon_out events.
 //   Discord -> game : /pigeon (or Reply) queues a `pigeon` action for the
 //                     recipient; the game filters + delivers it.
 import {
@@ -24,6 +26,40 @@ import { ensureLinked } from "./autolink.js";
 
 export const MAX_LETTER = 1000;
 
+let client: Client | undefined;
+
+interface Sender {
+  UserId?: number;
+  Name?: string;
+  Character?: string;
+}
+
+/** DM a letter to the recipient's linked Discord account (no-op if they aren't linked). */
+async function dmLetter(toUserId: number, from: Sender, text: string, via: "game" | "discord", at = Date.now()) {
+  const link = store.linkByRoblox(toUserId);
+  if (!link || !client) return;
+  const user = await client.users.fetch(link.discordId).catch(() => undefined);
+  if (!user) return;
+  const fromName = from.Character || from.Name || "someone";
+  await user
+    .send({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(0xc8a96e)
+          .setTitle(`🕊️ A pigeon from ${fromName}`)
+          .setDescription(text.slice(0, 4000))
+          .setFooter({ text: `@${from.Name ?? "?"} · sent ${via === "game" ? "in game" : "from Discord"}` })
+          .setTimestamp(at),
+      ],
+      components: [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId(`pigeon_reply:${from.UserId}:${from.Name}`).setLabel("Reply").setStyle(ButtonStyle.Primary),
+        ),
+      ],
+    })
+    .catch(() => undefined);
+}
+
 /** Send a letter from a linked Discord user to a Roblox user. Returns an error message or undefined. */
 export async function sendPigeonFromDiscord(sender: User, toUserId: number, toName: string, text: string): Promise<string | undefined> {
   const link = await ensureLinked(sender.id);
@@ -45,40 +81,18 @@ export async function sendPigeonFromDiscord(sender: User, toUserId: number, toNa
     `Discord (${sender.username})`,
   );
   line("pigeons", `🕊️ **${link.robloxName}** (via Discord, ${sender}) → **${toName}**: ${body.replace(/@/g, "@​").slice(0, 300)}`);
+  await dmLetter(toUserId, { UserId: link.robloxId, Name: link.robloxName }, body, "discord");
   return undefined;
 }
 
-export function registerPigeons(client: Client) {
+export function registerPigeons(c: Client) {
+  client = c;
   on("pigeon_out", async (e) => {
     line("pigeons", `🕊️ ${name(e.From)} → **${e.ToName}**: ${String(e.Text).replace(/@/g, "@​").slice(0, 300)}`);
-    const link = store.linkByRoblox(Number(e.ToUserId));
-    if (!link) return;
-    const user = await client.users.fetch(link.discordId).catch(() => undefined);
-    if (!user) return;
-    const fromName = e.From?.Character || e.From?.Name || "someone";
-    await user
-      .send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xc8a96e)
-            .setTitle(`🕊️ A pigeon from ${fromName}`)
-            .setDescription(String(e.Text).slice(0, 4000))
-            .setFooter({ text: `@${e.From?.Name ?? "?"} · sent in game` })
-            .setTimestamp(e.At * 1000),
-        ],
-        components: [
-          new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`pigeon_reply:${e.From?.UserId}:${e.From?.Name}`)
-              .setLabel("Reply")
-              .setStyle(ButtonStyle.Primary),
-          ),
-        ],
-      })
-      .catch(() => undefined);
+    await dmLetter(Number(e.ToUserId), e.From ?? {}, String(e.Text), "game", (e.At ?? Date.now() / 1000) * 1000);
   });
 
-  client.on(Events.InteractionCreate, async (interaction) => {
+  c.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith("pigeon_reply:")) {
       const [, userId, name] = interaction.customId.split(":");
       const modal = new ModalBuilder()
