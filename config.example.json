@@ -1,0 +1,144 @@
+{
+  "guildId": "",
+  "roblox": {
+    "universeId": "",
+    "placeIds": [],
+    "profileStore": "FrameworkDevData_v.0003",
+    "profileKeyPrefix": "Player_",
+    "outboxQueue": "IliadOutbox",
+    "topic": "IliadBot",
+    "pendingStore": "IliadPending"
+  },
+  "poll": {
+    "intervalMs": 2000,
+    "batchSize": 50
+  },
+  "channels": {
+    "joins": "",
+    "chat": "",
+    "adminCommands": "",
+    "deaths": "",
+    "titanKills": "",
+    "trades": "",
+    "pdLog": "",
+    "pdAnnouncements": "",
+    "branchAudit": "",
+    "ranks": "",
+    "crates": "",
+    "pigeons": "",
+    "moderation": "",
+    "servers": ""
+  },
+  "pdAnnouncePing": "",
+  "staffRoles": {
+    "moderator": [],
+    "admin": [],
+    "owner": []
+  },
+  "commandPermissions": {
+    "lookup": "moderator",
+    "kick": "moderator",
+    "warn": "moderator",
+    "ban": "moderator",
+    "unban": "admin",
+    "void": "admin",
+    "announce": "moderator",
+    "servers": "moderator",
+    "shutdown": "admin",
+    "restart": "admin",
+    "rank": "admin",
+    "status": "moderator",
+    "whois": "moderator"
+  },
+  "linkedRole": "",
+  "removeBranchWhenRankRoleRemoved": false,
+  "branches": {
+    "SL": {
+      "name": "Scouting Legion",
+      "role": "",
+      "ranks": {
+        "Recruit": "",
+        "Private": "",
+        "PFC": "",
+        "LCpl": "",
+        "Corporal": "",
+        "Sergeant": "",
+        "SGM": "",
+        "Lieutenant": "",
+        "Captain": "",
+        "SectionCommander": "",
+        "AssistantCommander": "",
+        "Commander": ""
+      }
+    },
+    "MP": {
+      "name": "Military Police",
+      "role": "",
+      "ranks": {
+        "Recruit": "",
+        "Private": "",
+        "PFC": "",
+        "LCpl": "",
+        "Corporal": "",
+        "Sergeant": "",
+        "SGM": "",
+        "Lieutenant": "",
+        "Captain": "",
+        "SectionCommander": "",
+        "AssistantCommander": "",
+        "Commander": ""
+      }
+    },
+    "SG": {
+      "name": "Stationary Guard",
+      "role": "",
+      "ranks": {
+        "Recruit": "",
+        "Private": "",
+        "PFC": "",
+        "LCpl": "",
+        "Corporal": "",
+        "Sergeant": "",
+        "SGM": "",
+        "Lieutenant": "",
+        "Captain": "",
+        "SectionCommander": "",
+        "AssistantCommander": "",
+        "Commander": ""
+      }
+    },
+    "TC": {
+      "name": "Trainee Corps",
+      "role": "",
+      "ranks": {
+        "Initiate": "",
+        "Basic": "",
+        "Advanced": "",
+        "AwaitingTesting": "",
+        "Graduate": "",
+        "TraineeInstructor": "",
+        "EsteemedInstructor": "",
+        "SeniorInstructor": "",
+        "DeputyHeadInstructor": "",
+        "HeadInstructor": ""
+      }
+    },
+    "GOV": {
+      "name": "Government",
+      "role": "",
+      "ranks": {
+        "Official": "",
+        "ViceCIC": "",
+        "CIC": ""
+      }
+    },
+    "NO": {
+      "name": "Nooting Legion",
+      "role": "",
+      "ranks": {
+        "Zach": "",
+        "Pac": ""
+      }
+    }
+  }
+}
