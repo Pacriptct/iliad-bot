@@ -8,8 +8,9 @@ import { log } from "../log.js";
 import { allowed } from "./permissions.js";
 import { link, unlink, pigeon, whois } from "./player.js";
 import { lookup, kick, ban, unban, warn, voidCmd, rank } from "./moderation.js";
-import { announce, servers, shutdown, restart, status } from "./server.js";
+import { announce, servers, shutdown, restart, status, targetChoices } from "./server.js";
 import { branchRank, officerLevel } from "./branch.js";
+import { transferCmd } from "../features/transfers.js";
 import { rankOrder } from "../features/ranks.js";
 import type { Command } from "./types.js";
 
@@ -32,7 +33,7 @@ export const mainCommands: Command[] = [
   status,
 ];
 
-export const branchCommands: Command[] = [link, unlink, pigeon, branchRank];
+export const branchCommands: Command[] = [link, unlink, pigeon, branchRank, transferCmd];
 
 const mainByName = new Map(mainCommands.map((c) => [c.data.name, c]));
 const branchByName = new Map(branchCommands.map((c) => [c.data.name, c]));
@@ -41,13 +42,18 @@ async function handle(interaction: Interaction) {
   const branch = branchOfGuild(interaction.guildId);
 
   if (interaction.isAutocomplete()) {
-    if (interaction.commandName !== "rank") return;
+    if (!branch && (interaction.commandName === "restart" || interaction.commandName === "shutdown")) {
+      await interaction.respond(targetChoices(interaction.commandName, interaction.options.getFocused())).catch(() => undefined);
+      return;
+    }
+    if (interaction.commandName !== "rank" && interaction.commandName !== "transfer") return;
     const typed = interaction.options.getFocused().toLowerCase();
     let choices: string[];
     if (branch) {
       // Branch server: ranks below the officer's own, plus None (discharge).
       const { level } = officerLevel(interaction);
-      choices = [...Object.keys(config.branches[branch].ranks).filter((r) => rankOrder(branch, r) < level), "None"];
+      choices = Object.keys(config.branches[branch].ranks).filter((r) => rankOrder(branch, r) < level);
+      if (interaction.commandName === "rank") choices.push("None");
     } else {
       choices = Object.keys(config.branches[interaction.options.getString("branch") ?? ""]?.ranks ?? {});
     }

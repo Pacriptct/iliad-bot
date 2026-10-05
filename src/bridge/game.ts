@@ -40,7 +40,9 @@ export const game = {
   kick: (userId: number, reason: string) => publish({ Cmd: "kick", UserId: userId, Reason: reason }),
   announce: (kind: "system" | "shout", text: string, by: string, byUserId: number) =>
     publish({ Cmd: "announce", Kind: kind, Text: text, By: by, ByUserId: byUserId }),
-  shutdown: (reason: string, jobId?: string) => publish({ Cmd: "shutdown", Reason: reason, ...(jobId ? { JobId: jobId } : {}) }),
+  /** Shut down one server (jobId), every server of a place (placeId), or all. */
+  shutdown: (reason: string, target: { jobId?: string; placeId?: number } = {}) =>
+    publish({ Cmd: "shutdown", Reason: reason, ...(target.jobId ? { JobId: target.jobId } : {}), ...(target.placeId ? { PlaceId: target.placeId } : {}) }),
   linked: (userId: number, discord: string) => publish({ Cmd: "linked", UserId: userId, Discord: discord }),
   ping: (nonce: string) => publish({ Cmd: "ping", Nonce: nonce }),
 };

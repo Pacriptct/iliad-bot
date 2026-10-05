@@ -4,6 +4,8 @@
 // Where roles live:
 //   * Branch server (branches.<id>.guildId): the branch role + one role per rank.
 //   * Main server: the branch's mainRole (if set) and the linkedRole.
+//   * Any server: roleRules (Discord-only roles such as "Other Branch Hicom")
+//     given from someone's branch + rank. These only go game -> Discord.
 //   A branch with no guildId keeps its branch/rank roles in the main server.
 //
 //   Game -> Discord : rank_changed (Source "game"), join and link events make a
@@ -17,7 +19,7 @@
 // The bot's own role edits are suppressed for a few seconds (per server) so they
 // don't bounce back as Discord-side changes.
 import { Events, type Client, type GuildMember } from "discord.js";
-import { allGuilds, branchGuild, config } from "../config.js";
+import { allGuilds, branchGuild, branchOfGuild, config, type RoleRule } from "../config.js";
 import { log } from "../log.js";
 import { store } from "../store.js";
 import { on, who, type PlayerInfo } from "../bridge/events.js";
@@ -48,7 +50,20 @@ function managedRoles(guildId: string): Set<string> {
     if (guildId === config.guildId && b.mainRole) set.add(b.mainRole);
   }
   if (guildId === config.guildId && config.linkedRole) set.add(config.linkedRole);
+  for (const rule of config.roleRules) if (rule.role && ruleGuild(rule) === guildId) set.add(rule.role);
   return set;
+}
+
+const ruleGuild = (rule: RoleRule) => rule.guildId || config.guildId;
+
+/** Does (branch, rank) earn this rule's role? */
+function ruleMatches(rule: RoleRule, branch: string | undefined, rank: string | undefined): boolean {
+  if (!branch) return false;
+  const home = branchOfGuild(ruleGuild(rule));
+  const branchOk =
+    rule.branches === "any" || (rule.branches === "others" ? branch !== home : Array.isArray(rule.branches) && rule.branches.includes(branch));
+  const rankOk = !rule.ranks?.length || (rank !== undefined && rule.ranks.includes(rank));
+  return branchOk && rankOk;
 }
 
 /** Roles a member should hold in one server for (branch, rank). */
@@ -61,6 +76,9 @@ function desiredRoles(guildId: string, branch: string | undefined, rank: string 
   if (guildId === config.guildId) {
     if (b?.mainRole) roles.push(b.mainRole);
     if (linked && config.linkedRole) roles.push(config.linkedRole);
+  }
+  for (const rule of config.roleRules) {
+    if (rule.role && ruleGuild(rule) === guildId && ruleMatches(rule, branch, rank)) roles.push(rule.role);
   }
   return roles.filter(Boolean);
 }
@@ -175,7 +193,7 @@ export function registerRanks(c: Client) {
       if (fromOther && !config.allowDiscordTransfers) {
         await applyRoles(newMember.id, known!.branch, known!.rank).catch(() => undefined);
         logRank(
-          `⚠️ ${newMember} was given **${target.rank}** in **${config.branches[target.branch].name}**, but they're in **${config.branches[known!.branch!]?.name ?? known!.branch}**. Reverted — transfers between branches go through staff (\`/rank\` in the main server).`,
+          `⚠️ ${newMember} was given **${target.rank}** in **${config.branches[target.branch].name}**, but they're in **${config.branches[known!.branch!]?.name ?? known!.branch}**. Reverted — use \`/transfer\` to request them from their branch.`,
           target.branch,
         );
         return;

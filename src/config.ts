@@ -19,13 +19,32 @@ export interface BranchConfig {
   mainRole: string;
   /** Channel in the branch's server for its rank changes ("" = none). */
   rankLog: string;
+  /** Channel in the branch's server where transfer requests OUT of this branch are approved ("" = rankLog). */
+  transferChannel: string;
+}
+
+/**
+ * A Discord-only role the bot hands out from someone's game rank, e.g. "Other
+ * Branch Hicom" in the SL server for MP/SG/TC commanders. Game -> Discord only.
+ */
+export interface RoleRule {
+  /** Server the role is in ("" = main server). */
+  guildId: string;
+  role: string;
+  /** Branch ids that qualify, "others" (every branch except the one whose server this is) or "any". */
+  branches: string[] | "others" | "any";
+  /** Rank ids that qualify (in any of those branches). Empty / missing = any rank. */
+  ranks?: string[];
+  /** Optional note for yourself, e.g. "Other Branch Hicom". */
+  name?: string;
 }
 
 export interface Config {
   guildId: string;
   roblox: {
     universeId: string;
-    placeIds: number[];
+    /** Place name -> place id, e.g. { "Main": 123, "Shiganshina": 456 }. Used by /restart, /shutdown and /servers. */
+    places: Record<string, number>;
     profileStore: string;
     profileKeyPrefix: string;
     outboxQueue: string;
@@ -65,6 +84,8 @@ export interface Config {
    * rank role. Off: only main-server staff (/rank) can move people between branches.
    */
   allowDiscordTransfers: boolean;
+  /** Extra roles given from game rank (see RoleRule). */
+  roleRules: RoleRule[];
   branches: Record<string, BranchConfig>;
 }
 
@@ -101,11 +122,21 @@ if (!config.roblox.universeId) {
 
 // Defaults for fields added after a config was written.
 config.allowDiscordTransfers ??= false;
+config.roleRules ??= [];
+config.roblox.places ??= {};
+{
+  // Older configs had a bare placeIds list.
+  const legacy = (config.roblox as { placeIds?: number[] }).placeIds;
+  for (const id of legacy ?? []) config.roblox.places[`Place ${id}`] ??= id;
+  // Drop unfilled placeholders ("Main": 0).
+  for (const [name, id] of Object.entries(config.roblox.places)) if (!Number(id)) delete config.roblox.places[name];
+}
 for (const b of Object.values(config.branches)) {
   b.guildId ??= "";
   b.officerRoles ??= [];
   b.mainRole ??= "";
   b.rankLog ??= "";
+  b.transferChannel ??= "";
 }
 
 /** The Discord server a branch's roles live in. */
@@ -115,6 +146,20 @@ export const branchGuild = (b: BranchConfig) => b.guildId || config.guildId;
 export function branchOfGuild(guildId: string | null): string | undefined {
   if (!guildId || guildId === config.guildId) return undefined;
   return Object.entries(config.branches).find(([, b]) => b.guildId === guildId)?.[0];
+}
+
+/** Display name for a place id ("Main (123)" or just the id). */
+export function placeName(id: number): string {
+  const name = Object.entries(config.roblox.places).find(([, pid]) => pid === id)?.[0];
+  return name ? `${name} (${id})` : String(id);
+}
+
+/** Resolve "Main", "main" or "123456" to a place id. */
+export function resolvePlace(input: string): number | undefined {
+  const text = input.trim();
+  const named = Object.entries(config.roblox.places).find(([name]) => name.toLowerCase() === text.toLowerCase());
+  if (named) return named[1];
+  return /^\d+$/.test(text) ? Number(text) : undefined;
 }
 
 /** Main server + every branch server. */

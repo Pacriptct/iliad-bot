@@ -22,11 +22,28 @@ export interface KnownRank {
   at: number;
 }
 
+export interface Transfer {
+  id: string;
+  robloxId: number;
+  robloxName: string;
+  from: string;
+  fromRank?: string;
+  to: string;
+  rank: string;
+  requestedBy: string; // discord id
+  requestedAt: number;
+  status: "pending" | "approved" | "denied" | "cancelled" | "expired";
+  decidedBy?: string; // discord id
+  /** Approval message, so it can be updated. */
+  message?: { channelId: string; messageId: string };
+}
+
 interface Data {
   links: Record<string, Link>; // discordId -> link
   codes: Record<string, { discordId: string; expires: number }>;
   warnings: Record<string, Warning[]>; // robloxId -> warnings
   ranks: Record<string, KnownRank>; // robloxId -> last known branch/rank
+  transfers: Record<string, Transfer>; // id -> transfer request
 }
 
 const dir = resolve(process.cwd(), "data");
@@ -34,10 +51,10 @@ const file = resolve(dir, "store.json");
 
 function load(): Data {
   if (!existsSync(file)) {
-    return { links: {}, codes: {}, warnings: {}, ranks: {} };
+    return { links: {}, codes: {}, warnings: {}, ranks: {}, transfers: {} };
   }
   const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<Data>;
-  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {}, ranks: parsed.ranks ?? {} };
+  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {}, ranks: parsed.ranks ?? {}, transfers: parsed.transfers ?? {} };
 }
 
 const data = load();
@@ -124,6 +141,26 @@ export const store = {
     const old = data.ranks[String(robloxId)];
     if (old && old.branch === known.branch && old.rank === known.rank) return;
     data.ranks[String(robloxId)] = known;
+    save();
+  },
+
+  // ── Transfers ────────────────────────────────────────────────────────────
+  transfer(id: string): Transfer | undefined {
+    return data.transfers[id];
+  },
+  pendingTransferFor(robloxId: number): Transfer | undefined {
+    return Object.values(data.transfers).find((t) => t.robloxId === robloxId && t.status === "pending");
+  },
+  pendingTransfers(): Transfer[] {
+    return Object.values(data.transfers).filter((t) => t.status === "pending");
+  },
+  saveTransfer(t: Transfer) {
+    data.transfers[t.id] = t;
+    // Keep the last 500 decided requests.
+    const decided = Object.values(data.transfers)
+      .filter((x) => x.status !== "pending")
+      .sort((a, b) => b.requestedAt - a.requestedAt);
+    for (const old of decided.slice(500)) delete data.transfers[old.id];
     save();
   },
 };

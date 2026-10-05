@@ -146,10 +146,10 @@ export async function getBan(userId: number): Promise<GameJoinRestriction | unde
 
 // ── Servers ──────────────────────────────────────────────────────────────────
 
-/** Restart all servers (closeAllVersions), optionally letting them bleed off. */
-export async function restartServers(bleedOffMinutes?: number) {
+/** Restart servers of the given places (all places if none), optionally letting them bleed off. */
+export async function restartServers(placeIds?: number[], bleedOffMinutes?: number) {
   await request("POST", `${universe()}:restartServers`, {
-    ...(config.roblox.placeIds.length ? { placeIds: config.roblox.placeIds } : {}),
+    ...(placeIds?.length ? { placeIds } : {}),
     closeAllVersions: true,
     ...(bleedOffMinutes ? { bleedOffServers: true, bleedOffDurationMinutes: bleedOffMinutes } : {}),
   });

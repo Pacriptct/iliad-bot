@@ -6,7 +6,7 @@ Discord bot for Odyssey. It:
 - **Announces PDs** (start / type / end) with a ping, and keeps a PD log (deaths, MIA).
 - **Syncs ranks both ways, across every branch's own Discord server.** Promote someone in their branch's server (give them the rank role, or `/rank` there) and their in-game rank changes. Change it in game and their roles follow in every server. See [Branch servers](#branch-servers).
 - **Handles messenger pigeons.** Letters sent in game reach linked players' DMs (with a Reply button). `/pigeon` sends a letter into the game.
-- **Staff tools:** look up a player's data and check it for corruption, kick, ban, unban, warn, void a death, set ranks, announce to all servers, list servers, shut down one or all servers, and restart servers. PDs can only be started and stopped in game.
+- **Staff tools:** look up a player's data and check it for corruption, kick, ban, unban, warn, void a death, set ranks, announce to all servers, list servers, and shut down or restart servers: one server, every server of one place, or everything. PDs can only be started and stopped in game.
 
 The game side is in the framework repo (`BotBridgeService`, `PigeonService`, `docs/features/DiscordBridge.md`). The bot needs **no public URL**. It polls the game through Roblox Open Cloud, so it runs anywhere that can make outbound HTTPS requests.
 
@@ -28,12 +28,12 @@ bot  ──(DataStore "IliadPending")─────────> offline player
 | `/unban`, `/void`, `/rank` | admin | `/rank` updates both the game and Discord roles |
 | `/announce message [style]` | moderator | System chat message or shout on every server (you must be linked) |
 | `/servers`, `/status` | moderator | Live servers + players, and a bridge connection check |
-| `/shutdown server\|all [reason]` | admin | Shut down one server (job id from `/servers`) or all of them |
-| `/restart confirm [bleed_minutes]` | admin | Restart every server onto the latest version |
+| `/shutdown target [reason]` | admin | `target` is one server (job id), one place (every server of it), or `all`. The list suggests live servers and your configured places. |
+| `/restart place confirm [bleed_minutes]` | admin | Restart one place's servers (or `all`) onto the latest version |
 
 Permission tiers are set in `config.json` (`commandPermissions`). Members with Discord's Administrator permission count as owner. All of the commands above are in the main server.
 
-Each branch server gets `/link`, `/unlink`, `/pigeon` and its own `/rank player rank`, described below.
+Each branch server gets `/link`, `/unlink`, `/pigeon`, and its own `/rank player rank` and `/transfer player [rank] [note]`, described below.
 
 ## Branch servers
 
@@ -45,6 +45,7 @@ Each branch has its own Discord server with its own rank roles. The bot sits in 
 |---|---|
 | A branch's server | That branch's member role (`role`) and one role per rank (`ranks`) |
 | Main server | `mainRole` for whichever branch the player is in (optional), plus `linkedRole` |
+| Any server | Discord-only roles from `roleRules` (see below) |
 
 A branch with an empty `guildId` keeps its roles in the main server instead.
 
@@ -55,7 +56,33 @@ A branch with an empty `guildId` keeps its roles in the main server instead.
 - **Give the rank role directly** in the branch's server. Discord's own role permissions decide who can do this. The bot picks it up and changes the rank in game.
 - **`/rank player rank`** in the branch's server. Only the branch's `officerRoles` (and the server's Administrators) can use it. Officers can only give ranks **below their own**, can only change people ranked below them, and can't change their own rank. Use `None` to discharge someone.
 
-**Transfers between branches.** A branch server can recruit someone who isn't in any branch. It can't take someone out of another branch: if a branch server gives a rank role to someone who's already in another branch, the bot reverts it and logs why. Transfers go through staff with `/rank` in the main server. Set `allowDiscordTransfers: true` to let branch servers do transfers themselves.
+**Transfers between branches.** A branch can recruit someone who isn't in any branch with `/rank`. To take someone from another branch, use `/transfer`:
+
+1. An officer of the receiving branch runs `/transfer player [rank] [note]` in their branch's server. The rank defaults to the lowest and must be below the officer's own.
+2. The bot posts the request with **Approve** and **Deny** buttons in the leaving branch's `transferChannel`. If that isn't set, it uses the branch's `rankLog`, and failing that the main server's `ranks` log.
+3. Someone from the leaving branch decides. It can be an officer who outranks the player, that server's Administrator, or admin staff if the request landed in the main server.
+4. Once approved, the player is moved in game and their roles follow in every server. The requester and the player get a DM. Requests expire after 7 days.
+
+If someone gives a rank role directly to a member of another branch, the bot reverts it and points them to `/transfer`. Set `allowDiscordTransfers: true` to let direct role changes and `/rank` move people between branches without approval. Main-server staff can always move anyone with `/rank`.
+
+**Discord-only roles (`roleRules`).** These are roles that don't exist in game but come from someone's game rank, like "Other Branch Hicom" or "Foreign Branch Commander" in the Scouting Legion server. Each rule names a server, a role, which branches qualify and, optionally, which ranks:
+
+```json
+"roleRules": [
+  {
+    "name": "Other Branch Hicom (SL server)",
+    "guildId": "<SL server id>",
+    "role": "<Other Branch Hicom role id>",
+    "branches": "others",
+    "ranks": ["SectionCommander", "AssistantCommander", "Commander", "DeputyHeadInstructor", "HeadInstructor", "ViceCIC", "CIC"]
+  }
+]
+```
+
+- `branches` can be `"others"` (every branch except the one whose server this is), `"any"`, or a list such as `["MP", "SG"]`.
+- If `ranks` is left out, any rank in those branches qualifies.
+- Add one rule per role per server. The bot gives and removes these roles as ranks change. They only go from game to Discord: handing one out by hand won't change anything in game.
+- The bot never touches roles that aren't in the config, so purely Discord-side roles (event team, verified, and so on) are left alone.
 
 **Logs.** Every rank change is posted to the main server's `ranks` channel. It's also posted to the `rankLog` channel of each branch involved, so a transfer shows up in both branches' logs.
 
@@ -95,19 +122,38 @@ cp config.example.json config.json
 In `config.json`, fill in:
 
 - `guildId`: your server's ID. Turn on Developer Mode in Discord, then right-click the server → Copy ID.
-- `roblox.universeId`: the experience's universe ID (shown on the Creator Dashboard). `placeIds` is optional and limits restarts to those places.
+- `roblox.universeId`: the experience's universe ID (shown on the Creator Dashboard).
+- `roblox.places`: a name for each place ID, e.g. `{ "Main": 1234567, "Trost": 7654321 }`. Place IDs are on the Creator Dashboard under each place. `/restart`, `/shutdown` and `/servers` use these names, and you can also type a raw place ID.
 - `channels.*`: a channel ID for each log. Leave a channel `""` to turn that log off. Several logs can share one channel. `items` covers drops and pickups of other players' drops; `loot` covers corpse looting.
 - `pdAnnouncePing`: a role ID, `"@everyone"`, `"@here"` or `""`.
 - `staffRoles`: role IDs for moderator / admin / owner.
 - For each branch under `branches.<id>`:
   - `guildId`: the branch's Discord server ID (`""` = use the main server).
   - `role`: the branch member role in that server.
-  - `ranks`: a role ID in that server for each rank ID, **lowest rank first**. Rank IDs must match the game's `BranchConfig`.
-  - `officerRoles`: roles in that server allowed to use `/rank` there.
+  - `ranks`: a role ID in that server for each rank ID, **lowest rank first**. Rank IDs must match the game's `BranchConfig`. `npm run setup-roles` can fill these in for you (see below).
+  - `officerRoles`: roles in that server allowed to use `/rank` and `/transfer` there, and to approve transfers out.
   - `mainRole`: an optional role in the main server for members of this branch.
   - `rankLog`: an optional channel in that server for the branch's rank changes.
-- `allowDiscordTransfers`: see [Branch servers](#branch-servers).
+  - `transferChannel`: an optional channel in that server where requests to transfer people **out** of this branch are approved (defaults to `rankLog`).
+- `allowDiscordTransfers` and `roleRules`: see [Branch servers](#branch-servers).
 - `linkedRole`: an optional role for linked members.
+
+#### Filling in rank roles automatically
+
+Each branch's ranks are set separately, and a branch only lists the ranks it has in game. To fill in a branch:
+
+1. Put the branch server's ID in `branches.<id>.guildId` and invite the bot to that server.
+2. Run:
+   ```bash
+   npm run build
+   npm run setup-roles            # dry run: shows the role it found for each rank
+   npm run setup-roles -- --write # saves them to config.json
+   ```
+   Add branch IDs to do only some branches (`npm run setup-roles -- SL MP --write`), or `--overwrite` to replace IDs already filled in.
+
+The script matches a role to a rank by its in-game name or ID, ignoring case and punctuation. Prefixes and suffixes are fine, so `Captain`, `[SL] Captain` and `Captain | SL` all match. It also finds the branch member role by the branch's name. Anything it can't match is listed, along with the server's other roles, so you can copy those IDs by hand: turn on Developer Mode, then go to Server Settings → Roles, right-click a role → Copy Role ID. `officerRoles`, `mainRole`, the log channels and `roleRules` are always filled in by hand.
+
+If a branch's Discord ranks don't line up with the game's, for example the Discord server has an extra rank, add it to the game's `BranchConfig` first, or leave it as a Discord-only role. A rank left blank still syncs in game. Players at that rank just get the member role in Discord.
 
 The queue, topic and store names must match the game's `BotBridgeConfig` (defaults: `IliadOutbox`, `IliadBot`, `IliadPending`). `profileStore` must match the game's profile store (`FrameworkDevData_v.0003`).
 

@@ -2,7 +2,9 @@
   "guildId": "",
   "roblox": {
     "universeId": "",
-    "placeIds": [],
+    "places": {
+      "Main": 0
+    },
     "profileStore": "FrameworkDevData_v.0003",
     "profileKeyPrefix": "Player_",
     "outboxQueue": "IliadOutbox",
@@ -55,6 +57,34 @@
   "linkedRole": "",
   "removeBranchWhenRankRoleRemoved": false,
   "allowDiscordTransfers": false,
+  "roleRules": [
+    {
+      "name": "Other Branch Hicom (in the SL server)",
+      "guildId": "",
+      "role": "",
+      "branches": "others",
+      "ranks": [
+        "SectionCommander",
+        "AssistantCommander",
+        "Commander",
+        "DeputyHeadInstructor",
+        "HeadInstructor",
+        "ViceCIC",
+        "CIC"
+      ]
+    },
+    {
+      "name": "Foreign Branch Commander (in the SL server)",
+      "guildId": "",
+      "role": "",
+      "branches": "others",
+      "ranks": [
+        "Commander",
+        "HeadInstructor",
+        "CIC"
+      ]
+    }
+  ],
   "branches": {
     "SL": {
       "name": "Scouting Legion",
@@ -76,7 +106,8 @@
       },
       "officerRoles": [],
       "mainRole": "",
-      "rankLog": ""
+      "rankLog": "",
+      "transferChannel": ""
     },
     "MP": {
       "name": "Military Police",
@@ -98,7 +129,8 @@
       },
       "officerRoles": [],
       "mainRole": "",
-      "rankLog": ""
+      "rankLog": "",
+      "transferChannel": ""
     },
     "SG": {
       "name": "Stationary Guard",
@@ -120,7 +152,8 @@
       },
       "officerRoles": [],
       "mainRole": "",
-      "rankLog": ""
+      "rankLog": "",
+      "transferChannel": ""
     },
     "TC": {
       "name": "Trainee Corps",
@@ -140,7 +173,8 @@
       },
       "officerRoles": [],
       "mainRole": "",
-      "rankLog": ""
+      "rankLog": "",
+      "transferChannel": ""
     },
     "GOV": {
       "name": "Government",
@@ -153,7 +187,8 @@
       },
       "officerRoles": [],
       "mainRole": "",
-      "rankLog": ""
+      "rankLog": "",
+      "transferChannel": ""
     },
     "NO": {
       "name": "Nooting Legion",
@@ -165,7 +200,8 @@
       },
       "officerRoles": [],
       "mainRole": "",
-      "rankLog": ""
+      "rankLog": "",
+      "transferChannel": ""
     }
   }
 }

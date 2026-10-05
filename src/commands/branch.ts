@@ -4,7 +4,7 @@
 // server's Administrators): they can promote / demote / discharge members of
 // THEIR branch, only to ranks below their own, and only people ranked below
 // them. Recruiting someone with no branch is allowed; pulling someone out of
-// another branch needs allowDiscordTransfers (otherwise main-server staff do it).
+// another branch goes through /transfer (see features/transfers.ts).
 import { PermissionFlagsBits, SlashCommandBuilder, type BaseInteraction } from "discord.js";
 import { branchOfGuild, config } from "../config.js";
 import { store } from "../store.js";
@@ -68,7 +68,7 @@ export const branchRank: Command = {
     }
     if (known?.branch && known.branch !== branch) {
       if (discharge || !config.allowDiscordTransfers) {
-        await i.editReply(`**${user.name}** is in **${config.branches[known.branch]?.name ?? known.branch}**. Transfers between branches go through staff.`);
+        await i.editReply(`**${user.name}** is in **${config.branches[known.branch]?.name ?? known.branch}**. Use \`/transfer\` to request them from that branch.`);
         return;
       }
     }

@@ -2,6 +2,7 @@
 // (PDs are started and ended in game only.)
 import { randomUUID } from "node:crypto";
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { config, placeName, resolvePlace } from "../config.js";
 import { store } from "../store.js";
 import { line } from "../features/channels.js";
 import { game } from "../bridge/game.js";
@@ -77,7 +78,7 @@ export const servers: Command = {
       const tags = [s.studio && "Studio", s.private && "Private"].filter(Boolean).join(", ");
       const names = s.players.map((p) => p.Name).join(", ") || "*empty*";
       e.addFields({
-        name: `${s.players.length}/${s.maxPlayers || "?"} · up ${formatDuration(s.uptime)}${tags ? ` · ${tags}` : ""}`,
+        name: `${placeName(s.placeId)} · ${s.players.length}/${s.maxPlayers || "?"} · up ${formatDuration(s.uptime)}${tags ? ` · ${tags}` : ""}`,
         value: `\`${s.jobId}\`\n${names}`.slice(0, 1024),
       });
     }
@@ -91,18 +92,23 @@ export const shutdown: Command = {
   staff: true,
   data: new SlashCommandBuilder()
     .setName("shutdown")
-    .setDescription("Shut down one server (by job id) or all of them.")
-    .addStringOption((o) => o.setName("server").setDescription("Job id from /servers, or \"all\"").setRequired(true))
+    .setDescription("Shut down one server, every server of one place, or everything.")
+    .addStringOption((o) =>
+      o.setName("target").setDescription("A server (job id), a place (name or place id), or \"all\"").setRequired(true).setAutocomplete(true),
+    )
     .addStringOption((o) => o.setName("reason").setDescription("Shown to players").setMaxLength(200)),
   async execute(i) {
     await i.deferReply({ ephemeral: true });
-    const server = i.options.getString("server", true).trim();
+    const target = resolveTarget(i.options.getString("target", true));
+    if (!target) {
+      await i.editReply("Unknown target. Use a job id from `/servers`, a place name / place id from config, or `all`.");
+      return;
+    }
     const reason = i.options.getString("reason") ?? "Server shutting down.";
-    const all = server.toLowerCase() === "all";
     try {
-      await game.shutdown(reason, all ? undefined : server);
-      line("moderation", `⛔ ${i.user} shut down ${all ? "**all servers**" : `server \`${server}\``}: ${reason}`);
-      await i.editReply(all ? "Shutting down every server." : `Shutting down \`${server}\`.`);
+      await game.shutdown(reason, target);
+      line("moderation", `⛔ ${i.user} shut down ${describeTarget(target)}: ${reason}`);
+      await i.editReply(`Shutting down ${describeTarget(target)}.`);
     } catch (err) {
       await i.editReply(`Failed: ${errText(err)}`);
     }
@@ -115,7 +121,8 @@ export const restart: Command = {
   staff: true,
   data: new SlashCommandBuilder()
     .setName("restart")
-    .setDescription("Restart every server (players are moved to fresh servers on the latest version).")
+    .setDescription("Restart servers onto the latest version (one place, or every place).")
+    .addStringOption((o) => o.setName("place").setDescription("Place name / place id, or \"all\"").setRequired(true).setAutocomplete(true))
     .addBooleanOption((o) => o.setName("confirm").setDescription("Set to True to restart").setRequired(true))
     .addIntegerOption((o) =>
       o.setName("bleed_minutes").setDescription("Let servers empty out over this many minutes instead of closing now").setMinValue(1).setMaxValue(60),
@@ -125,17 +132,61 @@ export const restart: Command = {
       await i.reply({ ephemeral: true, content: "Not restarted (confirm was False)." });
       return;
     }
+    const input = i.options.getString("place", true);
+    const all = input.trim().toLowerCase() === "all";
+    const placeId = all ? undefined : resolvePlace(input);
+    if (!all && !placeId) {
+      await i.reply({ ephemeral: true, content: "Unknown place. Use a place name from config, a place id, or `all`." });
+      return;
+    }
     await i.deferReply({ ephemeral: true });
     const bleed = i.options.getInteger("bleed_minutes") ?? undefined;
+    const what = placeId ? placeName(placeId) : "every place";
     try {
-      await restartServers(bleed);
-      line("moderation", `🔄 ${i.user} restarted all servers${bleed ? ` (bleed-off ${bleed}m)` : ""}`);
-      await i.editReply(bleed ? `Restarting: servers will bleed off over ${bleed} minutes.` : "Restarting all servers.");
+      await restartServers(placeId ? [placeId] : undefined, bleed);
+      line("moderation", `🔄 ${i.user} restarted ${what}${bleed ? ` (bleed-off ${bleed}m)` : ""}`);
+      await i.editReply(bleed ? `Restarting ${what}: servers will bleed off over ${bleed} minutes.` : `Restarting ${what}.`);
     } catch (err) {
       await i.editReply(`Failed: ${errText(err)}`);
     }
   },
 };
+
+type Target = { jobId?: string; placeId?: number };
+
+/** "all" -> {}, a live job id -> { jobId }, a place name / id -> { placeId }. */
+function resolveTarget(input: string): Target | undefined {
+  const text = input.trim();
+  if (text.toLowerCase() === "all") return {};
+  const job = liveServers().find((s) => s.jobId === text || (text.length >= 8 && s.jobId.startsWith(text)));
+  if (job) return { jobId: job.jobId };
+  const placeId = resolvePlace(text);
+  if (placeId) return { placeId };
+  // A job id we haven't heard a heartbeat from yet.
+  return /^[0-9a-f-]{36}$/i.test(text) ? { jobId: text } : undefined;
+}
+
+function describeTarget(t: Target): string {
+  if (t.jobId) return `server \`${t.jobId}\``;
+  if (t.placeId) return `every server of ${placeName(t.placeId)}`;
+  return "**all servers**";
+}
+
+/** Autocomplete for /restart place and /shutdown target. */
+export function targetChoices(command: string, typed: string): { name: string; value: string }[] {
+  const out = [{ name: command === "restart" ? "All places" : "All servers", value: "all" }];
+  for (const [name, id] of Object.entries(config.roblox.places)) {
+    const count = liveServers().filter((s) => s.placeId === id).length;
+    out.push({ name: `${command === "restart" ? "" : "Place: "}${name} (${id}) · ${count} live`, value: String(id) });
+  }
+  if (command === "shutdown") {
+    for (const s of liveServers()) {
+      out.push({ name: `Server ${s.jobId.slice(0, 8)} · ${placeName(s.placeId)} · ${s.players.length} players`, value: s.jobId });
+    }
+  }
+  const t = typed.toLowerCase();
+  return out.filter((c) => c.name.toLowerCase().includes(t) || c.value.toLowerCase().includes(t)).slice(0, 25);
+}
 
 // ── /status ──────────────────────────────────────────────────────────────────
 
