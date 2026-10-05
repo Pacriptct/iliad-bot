@@ -208,7 +208,7 @@ The smallest Basic droplet ($4–6/mo, 512 MB–1 GB) is plenty.
    ```
 3. Clone and configure:
    ```bash
-   git clone https://github.com/Pacriptct/iliiad-bot.git && cd iliiad-bot
+   git clone https://github.com/Pacriptct/iliad-bot.git && cd iliad-bot
    npm install
    nano .env           # paste the three secrets
    nano config.json    # or scp your filled-in config.json up
