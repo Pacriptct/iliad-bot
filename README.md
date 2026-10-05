@@ -178,7 +178,7 @@ The script matches a role to a rank by its in-game name or ID, ignoring case and
 
 If a branch's Discord ranks don't line up with the game's, for example the Discord server has an extra rank, add it to the game's `BranchConfig` first, or leave it as a Discord-only role. A rank left blank still syncs in game. Players at that rank just get the member role in Discord.
 
-The queue, topic and store names must match the game's `BotBridgeConfig` (defaults: `IliadOutbox`, `IliadBot`, `IliadPending`). `profileStore` must match the game's profile store (`FrameworkDevData_v.0003`).
+The queue, topic and store names must match the game's `BotBridgeConfig` (defaults: `IliadOutbox`, `IliadBot`, `IliadPending`). `profileStore` must match the game's profile store (`FrameworkDevData_v.0004`).
 
 In game, set `BotBridgeConfig.Enabled = true` and **publish**. Test from a **live server** (join through the Roblox app), not a Studio play-test: Studio's MemoryStore is isolated from the live game's, so the bot never sees Studio events.
 

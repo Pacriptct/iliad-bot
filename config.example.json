@@ -5,7 +5,7 @@
     "places": {
       "Main": 0
     },
-    "profileStore": "FrameworkDevData_v.0003",
+    "profileStore": "FrameworkDevData_v.0004",
     "profileKeyPrefix": "Player_",
     "outboxQueue": "IliadOutbox",
     "topic": "IliadBot",
