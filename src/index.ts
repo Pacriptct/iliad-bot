@@ -1,6 +1,6 @@
 // Bot entrypoint.
 import { Client, Events, GatewayIntentBits, Partials } from "discord.js";
-import { config, secrets } from "./config.js";
+import { allGuilds, config, secrets } from "./config.js";
 import { log } from "./log.js";
 import { registerServers } from "./bridge/servers.js";
 import { startOutbox } from "./bridge/outbox.js";
@@ -27,12 +27,15 @@ registerCommands(client);
 
 client.once(Events.ClientReady, async (c) => {
   log.info(`logged in as ${c.user.tag}`);
-  const guild = await c.guilds.fetch(config.guildId).catch(() => undefined);
-  if (!guild) {
-    log.error(`not in guild ${config.guildId} — check guildId in config.json and invite the bot`);
-  } else {
+  for (const guildId of allGuilds()) {
+    const guild = await c.guilds.fetch(guildId).catch(() => undefined);
+    if (!guild) {
+      log.error(`not in server ${guildId}${guildId === config.guildId ? " (main)" : ""} — check config.json and invite the bot there`);
+      continue;
+    }
     // Cache members so rank-role changes are seen.
-    await guild.members.fetch().catch((err) => log.warn("member fetch failed:", err.message));
+    await guild.members.fetch().catch((err) => log.warn(`member fetch in ${guild.name} failed:`, err.message));
+    log.info(`watching ${guild.name}`);
   }
   startChannels(client);
   startOutbox();

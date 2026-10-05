@@ -25,6 +25,8 @@
     "branchAudit": "",
     "ranks": "",
     "crates": "",
+    "items": "",
+    "loot": "",
     "pigeons": "",
     "moderation": "",
     "servers": ""
@@ -52,9 +54,11 @@
   },
   "linkedRole": "",
   "removeBranchWhenRankRoleRemoved": false,
+  "allowDiscordTransfers": false,
   "branches": {
     "SL": {
       "name": "Scouting Legion",
+      "guildId": "",
       "role": "",
       "ranks": {
         "Recruit": "",
@@ -69,10 +73,14 @@
         "SectionCommander": "",
         "AssistantCommander": "",
         "Commander": ""
-      }
+      },
+      "officerRoles": [],
+      "mainRole": "",
+      "rankLog": ""
     },
     "MP": {
       "name": "Military Police",
+      "guildId": "",
       "role": "",
       "ranks": {
         "Recruit": "",
@@ -87,10 +95,14 @@
         "SectionCommander": "",
         "AssistantCommander": "",
         "Commander": ""
-      }
+      },
+      "officerRoles": [],
+      "mainRole": "",
+      "rankLog": ""
     },
     "SG": {
       "name": "Stationary Guard",
+      "guildId": "",
       "role": "",
       "ranks": {
         "Recruit": "",
@@ -105,10 +117,14 @@
         "SectionCommander": "",
         "AssistantCommander": "",
         "Commander": ""
-      }
+      },
+      "officerRoles": [],
+      "mainRole": "",
+      "rankLog": ""
     },
     "TC": {
       "name": "Trainee Corps",
+      "guildId": "",
       "role": "",
       "ranks": {
         "Initiate": "",
@@ -121,24 +137,35 @@
         "SeniorInstructor": "",
         "DeputyHeadInstructor": "",
         "HeadInstructor": ""
-      }
+      },
+      "officerRoles": [],
+      "mainRole": "",
+      "rankLog": ""
     },
     "GOV": {
       "name": "Government",
+      "guildId": "",
       "role": "",
       "ranks": {
         "Official": "",
         "ViceCIC": "",
         "CIC": ""
-      }
+      },
+      "officerRoles": [],
+      "mainRole": "",
+      "rankLog": ""
     },
     "NO": {
       "name": "Nooting Legion",
+      "guildId": "",
       "role": "",
       "ranks": {
         "Zach": "",
         "Pac": ""
-      }
+      },
+      "officerRoles": [],
+      "mainRole": "",
+      "rankLog": ""
     }
   }
 }

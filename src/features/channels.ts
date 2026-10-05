@@ -20,7 +20,10 @@ export function startChannels(c: Client) {
 }
 
 function queueFor(key: ChannelKey): Pending | undefined {
-  const id = config.channels[key];
+  return queueForId(config.channels[key]);
+}
+
+function queueForId(id: string): Pending | undefined {
   if (!id) return undefined;
   let q = queues.get(id);
   if (!q) {
@@ -33,6 +36,11 @@ function queueFor(key: ChannelKey): Pending | undefined {
 /** Queue a plain log line (grouped into one message per flush). */
 export function line(key: ChannelKey, text: string) {
   queueFor(key)?.lines.push(text.length > 1800 ? `${text.slice(0, 1800)}…` : text);
+}
+
+/** Queue a log line for a channel by id (e.g. a branch server's rank log). */
+export function lineTo(channelId: string, text: string) {
+  queueForId(channelId)?.lines.push(text.length > 1800 ? `${text.slice(0, 1800)}…` : text);
 }
 
 /** Queue an embed. */

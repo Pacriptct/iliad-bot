@@ -1,5 +1,6 @@
 // Player-facing commands: /link, /unlink, /pigeon, and /whois (staff).
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { config } from "../config.js";
 import { store } from "../store.js";
 import { resolvePlayer } from "../features/resolve.js";
 import { sendPigeonFromDiscord, MAX_LETTER } from "../features/pigeons.js";
@@ -25,7 +26,7 @@ export const unlink: Command = {
   data: new SlashCommandBuilder().setName("unlink").setDescription("Unlink your Roblox account."),
   async execute(i) {
     const removed = store.removeLink(i.user.id);
-    if (removed) await applyRoles(i.user.id, undefined, undefined).catch(() => undefined);
+    if (removed) await applyRoles(i.user.id, undefined, undefined, false).catch(() => undefined);
     await i.reply({ ephemeral: true, content: removed ? `Unlinked **${removed.robloxName}**.` : "You aren't linked." });
   },
 };
@@ -59,6 +60,7 @@ export const whois: Command = {
   async execute(i) {
     const target = await resolvePlayer(i.options.getString("player", true));
     const link = target ? store.linkByRoblox(target.id) : undefined;
+    const known = target ? store.rankOf(target.id) : undefined;
     if (!target) {
       await i.reply({ ephemeral: true, content: "Not found (Discord members must be linked)." });
       return;
@@ -69,7 +71,10 @@ export const whois: Command = {
         new EmbedBuilder()
           .setTitle(target.name)
           .setURL(profileUrl(target.id))
-          .setDescription(link ? `Linked to <@${link.discordId}> since <t:${Math.floor(link.linkedAt / 1000)}:D>` : "Not linked to Discord.")
+          .setDescription(
+            (link ? `Linked to <@${link.discordId}> since <t:${Math.floor(link.linkedAt / 1000)}:D>` : "Not linked to Discord.") +
+              (known?.branch ? `\nLast seen as **${known.rank ?? "—"}** in **${config.branches[known.branch]?.name ?? known.branch}**` : ""),
+          )
           .setFooter({ text: `Roblox id ${target.id}` }),
       ],
     });

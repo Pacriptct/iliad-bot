@@ -2,9 +2,9 @@
 
 Discord bot for Odyssey. It:
 
-- **Logs the game** to Discord channels: joins/leaves, chat, admin commands, deaths, titan kills, trades, crate theft, branch changes, server start/stop.
+- **Logs the game** to Discord channels: joins/leaves, chat, admin commands, every death (with cause, killer, location and what was dropped), item drops and pickups, corpse looting, titan kills, trades, crate theft, branch changes, server start/stop.
 - **Announces PDs** (start / type / end) with a ping, and keeps a PD log (deaths, MIA).
-- **Syncs ranks both ways.** Promote someone in Discord (give them the rank role) and their in-game rank changes. Change it in game and their Discord roles follow.
+- **Syncs ranks both ways, across every branch's own Discord server.** Promote someone in their branch's server (give them the rank role, or `/rank` there) and their in-game rank changes. Change it in game and their roles follow in every server. See [Branch servers](#branch-servers).
 - **Handles messenger pigeons.** Letters sent in game reach linked players' DMs (with a Reply button). `/pigeon` sends a letter into the game.
 - **Staff tools:** look up a player's data and check it for corruption, kick, ban, unban, warn, void a death, set ranks, announce to all servers, list servers, shut down one or all servers, and restart servers. PDs can only be started and stopped in game.
 
@@ -31,7 +31,35 @@ bot  ──(DataStore "IliadPending")─────────> offline player
 | `/shutdown server\|all [reason]` | admin | Shut down one server (job id from `/servers`) or all of them |
 | `/restart confirm [bleed_minutes]` | admin | Restart every server onto the latest version |
 
-Permission tiers are set in `config.json` (`commandPermissions`). Members with Discord's Administrator permission count as owner.
+Permission tiers are set in `config.json` (`commandPermissions`). Members with Discord's Administrator permission count as owner. All of the commands above are in the main server.
+
+Each branch server gets `/link`, `/unlink`, `/pigeon` and its own `/rank player rank`, described below.
+
+## Branch servers
+
+Each branch has its own Discord server with its own rank roles. The bot sits in the main server and in every branch server. One `/link` (from any of them) covers all of them.
+
+**Where the roles live**
+
+| Server | Roles the bot manages |
+|---|---|
+| A branch's server | That branch's member role (`role`) and one role per rank (`ranks`) |
+| Main server | `mainRole` for whichever branch the player is in (optional), plus `linkedRole` |
+
+A branch with an empty `guildId` keeps its roles in the main server instead.
+
+**Game → Discord.** When someone's rank changes in game, or they join the game or link their account, the bot sets their roles in every server to match. If they move from one branch to another, they lose the old branch's roles in its server and get the new branch's roles in its server. In the main server their `mainRole` is swapped. If a linked player joins a branch server later, their roles are applied straight away. The bot only touches roles listed in the config.
+
+**Discord → game.** There are two ways to change a rank from a branch's server:
+
+- **Give the rank role directly** in the branch's server. Discord's own role permissions decide who can do this. The bot picks it up and changes the rank in game.
+- **`/rank player rank`** in the branch's server. Only the branch's `officerRoles` (and the server's Administrators) can use it. Officers can only give ranks **below their own**, can only change people ranked below them, and can't change their own rank. Use `None` to discharge someone.
+
+**Transfers between branches.** A branch server can recruit someone who isn't in any branch. It can't take someone out of another branch: if a branch server gives a rank role to someone who's already in another branch, the bot reverts it and logs why. Transfers go through staff with `/rank` in the main server. Set `allowDiscordTransfers: true` to let branch servers do transfers themselves.
+
+**Logs.** Every rank change is posted to the main server's `ranks` channel. It's also posted to the `rankLog` channel of each branch involved, so a transfer shows up in both branches' logs.
+
+**Note:** the bot remembers each player's branch and rank from the game. Someone who hasn't joined the game since the bot started running is "unknown" until they do, or until staff `/rank` them.
 
 ## Setup
 
@@ -40,8 +68,8 @@ Permission tiers are set in `config.json` (`commandPermissions`). Members with D
 1. In <https://discord.com/developers/applications>, create an application and add a **Bot**.
 2. Under **Bot**, turn on the **Server Members Intent**. Rank sync needs it.
 3. Copy the bot token and the application (client) ID.
-4. Invite the bot with the scopes `bot` and `applications.commands`, plus the permissions **Manage Roles**, **Send Messages**, **Embed Links**, **Attach Files** and **Mention Everyone** (for PD pings).
-5. In Server Settings → Roles, drag the bot's role **above** every branch and rank role it should manage.
+4. Invite the bot to the **main server and every branch server**. Use the scopes `bot` and `applications.commands`, plus the permissions **Manage Roles**, **Send Messages**, **Embed Links**, **Attach Files** and **Mention Everyone** (for PD pings).
+5. In each server, go to Server Settings → Roles and drag the bot's role **above** every branch and rank role it should manage.
 
 ### 2. Roblox Open Cloud API key
 
@@ -68,10 +96,17 @@ In `config.json`, fill in:
 
 - `guildId`: your server's ID. Turn on Developer Mode in Discord, then right-click the server → Copy ID.
 - `roblox.universeId`: the experience's universe ID (shown on the Creator Dashboard). `placeIds` is optional and limits restarts to those places.
-- `channels.*`: a channel ID for each log. Leave a channel `""` to turn that log off. Several logs can share one channel.
+- `channels.*`: a channel ID for each log. Leave a channel `""` to turn that log off. Several logs can share one channel. `items` covers drops and pickups of other players' drops; `loot` covers corpse looting.
 - `pdAnnouncePing`: a role ID, `"@everyone"`, `"@here"` or `""`.
 - `staffRoles`: role IDs for moderator / admin / owner.
-- `branches.<id>.role`: the branch's role. `branches.<id>.ranks`: a rank-role ID for each rank ID, **lowest rank first**. Rank IDs must match the game's `BranchConfig`.
+- For each branch under `branches.<id>`:
+  - `guildId`: the branch's Discord server ID (`""` = use the main server).
+  - `role`: the branch member role in that server.
+  - `ranks`: a role ID in that server for each rank ID, **lowest rank first**. Rank IDs must match the game's `BranchConfig`.
+  - `officerRoles`: roles in that server allowed to use `/rank` there.
+  - `mainRole`: an optional role in the main server for members of this branch.
+  - `rankLog`: an optional channel in that server for the branch's rank changes.
+- `allowDiscordTransfers`: see [Branch servers](#branch-servers).
 - `linkedRole`: an optional role for linked members.
 
 The queue, topic and store names must match the game's `BotBridgeConfig` (defaults: `IliadOutbox`, `IliadBot`, `IliadPending`). `profileStore` must match the game's profile store (`FrameworkDevData_v.0003`).
@@ -85,7 +120,7 @@ Requires Node 22.9 or newer.
 ```bash
 npm install
 npm run build
-npm run deploy-commands   # once, and again whenever commands change
+npm run deploy-commands   # once, again whenever commands change, and after adding a branch server
 npm start
 ```
 
@@ -124,7 +159,7 @@ To update:
 git pull && npm install && npm run build && npm run deploy-commands && pm2 restart iliiad-bot
 ```
 
-**Back up `data/store.json`.** It holds account links and the bot-side warning history. A weekly `scp` or DigitalOcean droplet backups both work.
+**Back up `data/store.json`.** It holds account links, the bot-side warning history and each player's last known rank. A weekly `scp` or DigitalOcean droplet backups both work.
 
 ## Notes
 

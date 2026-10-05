@@ -1,5 +1,5 @@
-// Small JSON-file store (data/store.json): account links, pending link codes and
-// the bot-side warning history. Writes are atomic (temp file + rename).
+// Small JSON-file store (data/store.json): account links, pending link codes,
+// the bot-side warning history and each player's last known branch/rank. Writes are atomic (temp file + rename).
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -16,10 +16,17 @@ export interface Warning {
   at: number;
 }
 
+export interface KnownRank {
+  branch?: string;
+  rank?: string;
+  at: number;
+}
+
 interface Data {
   links: Record<string, Link>; // discordId -> link
   codes: Record<string, { discordId: string; expires: number }>;
   warnings: Record<string, Warning[]>; // robloxId -> warnings
+  ranks: Record<string, KnownRank>; // robloxId -> last known branch/rank
 }
 
 const dir = resolve(process.cwd(), "data");
@@ -27,10 +34,10 @@ const file = resolve(dir, "store.json");
 
 function load(): Data {
   if (!existsSync(file)) {
-    return { links: {}, codes: {}, warnings: {} };
+    return { links: {}, codes: {}, warnings: {}, ranks: {} };
   }
   const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<Data>;
-  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {} };
+  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {}, ranks: parsed.ranks ?? {} };
 }
 
 const data = load();
@@ -106,5 +113,17 @@ export const store = {
   },
   warnings(robloxId: number): Warning[] {
     return data.warnings[String(robloxId)] ?? [];
+  },
+
+  // ── Known ranks (from the game) ──────────────────────────────────────────
+  rankOf(robloxId: number): KnownRank | undefined {
+    return data.ranks[String(robloxId)];
+  },
+  setRank(robloxId: number, branch: string | undefined, rank: string | undefined) {
+    const known = branch && branch !== "None" ? { branch, rank, at: Date.now() } : { at: Date.now() };
+    const old = data.ranks[String(robloxId)];
+    if (old && old.branch === known.branch && old.rank === known.rank) return;
+    data.ranks[String(robloxId)] = known;
+    save();
   },
 };

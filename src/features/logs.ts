@@ -16,6 +16,37 @@ function offer(o: { Gold?: number; Items?: Record<string, number> } | undefined)
   return parts.length ? parts.join(", ") : "nothing";
 }
 
+/** "killed by a titan (Abnormal)", "shot by Bob", ... */
+function deathCause(e: { Cause?: string; Killer?: string; [key: string]: unknown }): string {
+  const by = e.Killer ? `**${e.Killer}**` : undefined;
+  switch (e.Cause) {
+    case "Titan":
+      return `was killed by a titan${e.Killer ? ` (${e.Killer})` : ""}`;
+    case "Eaten":
+      return `was eaten by a titan${e.Killer ? ` (${e.Killer})` : ""}`;
+    case "Blade":
+      return by ? `was cut down by ${by}` : "was cut down";
+    case "Melee":
+      return by ? `was beaten to death by ${by}` : "was beaten to death";
+    case "Shot":
+      return by ? `was shot by ${by}` : "was shot";
+    case "Shifter":
+      return by ? `was killed by ${by}'s shifter` : "was killed by a shifter";
+    default:
+      return "died";
+  }
+}
+
+function dropped(d?: { Gold?: number; Items?: Record<string, number>; Tools?: string[]; GearParts?: number }): string {
+  if (!d) return "";
+  const parts: string[] = [];
+  if (d.Gold) parts.push(`${d.Gold} Gold`);
+  for (const [id, n] of Object.entries(d.Items ?? {})) parts.push(`${n}× ${id}`);
+  parts.push(...(d.Tools ?? []));
+  if (d.GearParts) parts.push(`${d.GearParts} gear part${d.GearParts === 1 ? "" : "s"}`);
+  return parts.length ? ` — dropped ${parts.join(", ")}` : "";
+}
+
 export function registerLogs() {
   on("join", (e, meta) => {
     store.updateRobloxName(e.UserId, e.Name);
@@ -36,7 +67,25 @@ export function registerLogs() {
   });
 
   on("death", (e, meta) => {
-    line("deaths", `${ts(e.At)} 💀 **${who(e as unknown as PlayerInfo)}** died${e.DuringPD ? " **during a PD**" : ""} in ${server(meta)}${tag(meta)}`);
+    const pos = Array.isArray(e.Position) ? ` at \`${e.Position.join(", ")}\`` : "";
+    line(
+      "deaths",
+      `${ts(e.At)} 💀 **${who(e as unknown as PlayerInfo)}** ${deathCause(e)}${e.DuringPD ? " **during a PD**" : ""}${pos} in ${server(meta)}${dropped(e.Dropped)}${tag(meta)}`,
+    );
+  });
+
+  on("item_drop", (e, meta) => {
+    const what = `${e.Count > 1 ? `${e.Count}× ` : ""}${e.Item}`;
+    const why = e.Reason === "overflow" ? " *(didn't fit)*" : "";
+    line("items", `${ts(e.At)} 📦 **${who(e as unknown as PlayerInfo)}** dropped ${what}${why} in ${server(meta)}${tag(meta)}`);
+  });
+  on("item_pickup", (e, meta) => {
+    const what = `${e.Count > 1 ? `${e.Count}× ` : ""}${e.Item}`;
+    line("items", `${ts(e.At)} ✋ **${who(e as unknown as PlayerInfo)}** picked up ${what} dropped by **${e.DroppedBy ?? e.DroppedById}** in ${server(meta)}${tag(meta)}`);
+  });
+  on("corpse_loot", (e, meta) => {
+    const taken = Array.isArray(e.Taken) ? e.Taken.join(", ") : "something";
+    line("loot", `${ts(e.At)} 🪦 **${who(e as unknown as PlayerInfo)}** looted **${e.OwnerName}**'s body: ${taken} in ${server(meta)}${tag(meta)}`);
   });
 
   on("titan_kill", (e) => {

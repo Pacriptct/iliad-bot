@@ -17,6 +17,7 @@ export function registerLinking(client: Client) {
       return;
     }
     store.setLink({ discordId, robloxId: p.UserId, robloxName: p.Name, linkedAt: Date.now() });
+    store.setRank(p.UserId, p.Branch, p.Rank);
     const user = await client.users.fetch(discordId).catch(() => undefined);
     await applyRoles(discordId, p.Branch && p.Branch !== "None" ? p.Branch : undefined, p.Rank).catch(() => undefined);
     await game.linked(p.UserId, user?.username ?? discordId).catch(() => undefined);
