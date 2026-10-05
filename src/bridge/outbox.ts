@@ -31,8 +31,9 @@ export function startOutbox() {
       }
       // Discard after handling (handlers catch their own errors, so a bad event
       // can't wedge the queue).
-      if (read.readId && items.length) {
-        await discardQueue(queue, read.readId);
+      if (items.length) {
+        if (read.readId) await discardQueue(queue, read.readId);
+        else log.warn("outbox: read returned items but no readId, so they can't be discarded (they'll be read again)");
       }
       drained = items.length < batchSize;
     } catch (err) {

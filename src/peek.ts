@@ -11,3 +11,10 @@ const res = await fetch(url, { headers: { "x-api-key": secrets.robloxApiKey } })
 const body = await res.text();
 console.log("status:", res.status);
 console.log(body.length > 3000 ? `${body.slice(0, 3000)}… (${body.length} chars)` : body || "(empty body)");
+try {
+  const parsed = JSON.parse(body);
+  const list = parsed.items ?? parsed.queueItems ?? [];
+  console.log(`\n${list.length} item(s), readId: ${parsed.readId ?? "(none)"}`);
+} catch {
+  /* not JSON */
+}

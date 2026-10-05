@@ -59,12 +59,20 @@ export interface QueueRead<T> {
   items?: { data: T }[];
 }
 
+// The live API names the list `queueItems` (the published spec says `items`).
+interface RawQueueRead<T> {
+  readId?: string;
+  items?: { data: T }[];
+  queueItems?: { data: T }[];
+}
+
 export async function readQueue<T>(queue: string, count: number, invisibility = "30s"): Promise<QueueRead<T>> {
   try {
-    return await request<QueueRead<T>>(
+    const raw = await request<RawQueueRead<T>>(
       "GET",
       `${universe()}/memory-store/queues/${enc(queue)}/items:read?count=${count}&allOrNothing=false&invisibilityWindow=${invisibility}`,
     );
+    return { readId: raw.readId, items: raw.items ?? raw.queueItems ?? [] };
   } catch (err) {
     // An empty (or not yet created) queue answers 404 "Queue items not found".
     if (err instanceof OpenCloudError && err.status === 404) return {};
