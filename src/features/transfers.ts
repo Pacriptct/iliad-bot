@@ -17,6 +17,7 @@ import {
   SlashCommandBuilder,
   type ButtonInteraction,
   type Client,
+  MessageFlags,
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { config, TIERS as STAFF_TIERS } from "../config.js";
@@ -89,7 +90,7 @@ export const transferCmd: Command = {
     .addStringOption((o) => o.setName("rank").setDescription("Their rank here (default: the lowest)").setAutocomplete(true))
     .addStringOption((o) => o.setName("note").setDescription("Shown to the other branch's officers").setMaxLength(300)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const { branch: to, level } = officerLevel(i);
     if (!to || level < 0) {
       await i.editReply("Only this branch's officers can request transfers.");
@@ -176,12 +177,12 @@ async function decide(i: ButtonInteraction, approve: boolean, id: string) {
   const t = store.transfer(id);
   if (!t || t.status !== "pending") {
     await i.update({ components: t ? [buttons(t, true)] : [] }).catch(() => undefined);
-    await i.followUp({ ephemeral: true, content: "This request was already handled." }).catch(() => undefined);
+    await i.followUp({ flags: MessageFlags.Ephemeral, content: "This request was already handled." }).catch(() => undefined);
     return;
   }
   const reason = cannotDecide(i, t);
   if (reason) {
-    await i.reply({ ephemeral: true, content: reason });
+    await i.reply({ flags: MessageFlags.Ephemeral, content: reason });
     return;
   }
 
@@ -192,7 +193,7 @@ async function decide(i: ButtonInteraction, approve: boolean, id: string) {
     t.decidedBy = i.user.id;
     store.saveTransfer(t);
     await i.update({ embeds: [requestEmbed(t)], components: [buttons(t, true)] });
-    await i.followUp({ ephemeral: true, content: `${t.robloxName} isn't in ${branchName(t.from)} any more, so the request was cancelled.` });
+    await i.followUp({ flags: MessageFlags.Ephemeral, content: `${t.robloxName} isn't in ${branchName(t.from)} any more, so the request was cancelled.` });
     return;
   }
 
@@ -200,7 +201,7 @@ async function decide(i: ButtonInteraction, approve: boolean, id: string) {
     try {
       await setRankFromDiscord(t.robloxId, t.to, t.rank, `Transfer approved by ${i.user.username}`);
     } catch (err) {
-      await i.reply({ ephemeral: true, content: `Couldn't apply the transfer: ${err instanceof Error ? err.message : err}` });
+      await i.reply({ flags: MessageFlags.Ephemeral, content: `Couldn't apply the transfer: ${err instanceof Error ? err.message : err}` });
       return;
     }
   }

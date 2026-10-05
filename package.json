@@ -13,7 +13,8 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "deploy-commands": "node --env-file-if-exists=.env dist/deploy-commands.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "setup-roles": "node --env-file-if-exists=.env dist/setup-roles.js"
+    "setup-roles": "node --env-file-if-exists=.env dist/setup-roles.js",
+    "peek": "node --env-file-if-exists=.env dist/peek.js"
   },
   "dependencies": {
     "discord.js": "^14.16.3"

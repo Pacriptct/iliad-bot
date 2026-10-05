@@ -1,5 +1,5 @@
 // Player-facing commands: /link, /unlink, /pigeon, and /whois (staff).
-import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { EmbedBuilder, SlashCommandBuilder, MessageFlags } from "discord.js";
 import { config } from "../config.js";
 import { store } from "../store.js";
 import { resolvePlayer } from "../features/resolve.js";
@@ -12,7 +12,7 @@ import type { Command } from "./types.js";
 export const link: Command = {
   data: new SlashCommandBuilder().setName("link").setDescription("Link your Roblox account (keeps your branch roles in sync)."),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const before = store.linkByDiscord(i.user.id);
     // Verified with Bloxlink / RoVer? Then there's nothing to do.
     const auto = before ? undefined : await ensureLinked(i.user.id);
@@ -33,7 +33,7 @@ export const unlink: Command = {
   async execute(i) {
     const removed = store.removeLink(i.user.id);
     if (removed) await applyRoles(i.user.id, undefined, undefined, false).catch(() => undefined);
-    await i.reply({ ephemeral: true, content: removed ? `Unlinked **${removed.robloxName}**.` : "You aren't linked." });
+    await i.reply({ flags: MessageFlags.Ephemeral, content: removed ? `Unlinked **${removed.robloxName}**.` : "You aren't linked." });
   },
 };
 
@@ -44,7 +44,7 @@ export const pigeon: Command = {
     .addStringOption((o) => o.setName("to").setDescription("Their Roblox username").setRequired(true))
     .addStringOption((o) => o.setName("message").setDescription("Your letter").setRequired(true).setMaxLength(MAX_LETTER)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const target = await resolvePlayer(i.options.getString("to", true));
     if (!target) {
       await i.editReply("No Roblox user by that name.");
@@ -68,11 +68,11 @@ export const whois: Command = {
     const link = target ? store.linkByRoblox(target.id) : undefined;
     const known = target ? store.rankOf(target.id) : undefined;
     if (!target) {
-      await i.reply({ ephemeral: true, content: "Not found (Discord members must be linked)." });
+      await i.reply({ flags: MessageFlags.Ephemeral, content: "Not found (Discord members must be linked)." });
       return;
     }
     await i.reply({
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
       embeds: [
         new EmbedBuilder()
           .setTitle(target.name)

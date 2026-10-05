@@ -1,7 +1,7 @@
 // Server + event commands: /announce, /servers, /shutdown, /restart, /status.
 // (PDs are started and ended in game only.)
 import { randomUUID } from "node:crypto";
-import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
+import { EmbedBuilder, SlashCommandBuilder, MessageFlags } from "discord.js";
 import { config, placeName, resolvePlace } from "../config.js";
 import { ensureLinked } from "../features/autolink.js";
 import { line } from "../features/channels.js";
@@ -40,7 +40,7 @@ export const announce: Command = {
         .addChoices({ name: "System message (chat)", value: "system" }, { name: "Shout (center of screen)", value: "shout" }),
     ),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     // Roblox requires text to be filtered as written by a real account.
     const link = await ensureLinked(i.user.id);
     if (!link) {
@@ -67,7 +67,7 @@ export const servers: Command = {
   async execute(i) {
     const list = liveServers();
     if (!list.length) {
-      await i.reply({ ephemeral: true, content: "No servers have checked in (they report every 60 seconds)." });
+      await i.reply({ flags: MessageFlags.Ephemeral, content: "No servers have checked in (they report every 60 seconds)." });
       return;
     }
     const total = list.reduce((n, s) => n + s.players.length, 0);
@@ -82,7 +82,7 @@ export const servers: Command = {
         value: `\`${s.jobId}\`\n${names}`.slice(0, 1024),
       });
     }
-    await i.reply({ ephemeral: true, embeds: [e] });
+    await i.reply({ flags: MessageFlags.Ephemeral, embeds: [e] });
   },
 };
 
@@ -98,7 +98,7 @@ export const shutdown: Command = {
     )
     .addStringOption((o) => o.setName("reason").setDescription("Shown to players").setMaxLength(200)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const target = resolveTarget(i.options.getString("target", true));
     if (!target) {
       await i.editReply("Unknown target. Use a job id from `/servers`, a place name / place id from config, or `all`.");
@@ -129,17 +129,17 @@ export const restart: Command = {
     ),
   async execute(i) {
     if (!i.options.getBoolean("confirm", true)) {
-      await i.reply({ ephemeral: true, content: "Not restarted (confirm was False)." });
+      await i.reply({ flags: MessageFlags.Ephemeral, content: "Not restarted (confirm was False)." });
       return;
     }
     const input = i.options.getString("place", true);
     const all = input.trim().toLowerCase() === "all";
     const placeId = all ? undefined : resolvePlace(input);
     if (!all && !placeId) {
-      await i.reply({ ephemeral: true, content: "Unknown place. Use a place name from config, a place id, or `all`." });
+      await i.reply({ flags: MessageFlags.Ephemeral, content: "Unknown place. Use a place name from config, a place id, or `all`." });
       return;
     }
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const bleed = i.options.getInteger("bleed_minutes") ?? undefined;
     const what = placeId ? placeName(placeId) : "every place";
     try {
@@ -194,7 +194,7 @@ export const status: Command = {
   staff: true,
   data: new SlashCommandBuilder().setName("status").setDescription("Check the bot <-> game connection."),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const nonce = randomUUID();
     pongs.set(nonce, { servers: 0, players: 0 });
     let pingError: string | undefined;

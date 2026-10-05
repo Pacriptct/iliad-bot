@@ -1,5 +1,5 @@
 // Staff moderation commands.
-import { AttachmentBuilder, EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { AttachmentBuilder, EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import { config } from "../config.js";
 import { store } from "../store.js";
 import { resolvePlayer } from "../features/resolve.js";
@@ -52,7 +52,7 @@ export const lookup: Command = {
     (o) => o.setName("raw").setDescription("Attach the full saved data as a JSON file"),
   ),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
 
@@ -124,7 +124,7 @@ export const kick: Command = {
     o.setName("reason").setDescription("Shown to the player").setRequired(true),
   ),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
     const reason = i.options.getString("reason", true);
@@ -145,7 +145,7 @@ export const ban: Command = {
     .addStringOption((o) => o.setName("duration").setDescription("e.g. 30m, 12h, 7d, 2w — leave empty for permanent"))
     .addBooleanOption((o) => o.setName("alts").setDescription("Also ban their alt accounts (default yes)")),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
     const reason = i.options.getString("reason", true);
@@ -176,7 +176,7 @@ export const unban: Command = {
   staff: true,
   data: playerOption(new SlashCommandBuilder().setName("unban").setDescription("Lift a player's ban.")),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
     try {
@@ -195,7 +195,7 @@ export const warn: Command = {
     (o) => o.setName("reason").setDescription("The warning").setRequired(true),
   ),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
     const reason = i.options.getString("reason", true);
@@ -219,7 +219,7 @@ export const voidCmd: Command = {
   staff: true,
   data: playerOption(new SlashCommandBuilder().setName("void").setDescription("Void a player's death (clears their wipe).")),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
     try {
@@ -249,7 +249,7 @@ export const rank: Command = {
     )
     .addStringOption((o) => o.setName("rank").setDescription("Rank (leave empty for the lowest)").setAutocomplete(true)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const user = await target(i);
     if (!user) return;
     const branch = i.options.getString("branch", true);
@@ -281,7 +281,7 @@ export const mute: Command = {
     .addStringOption((o) => o.setName("duration").setDescription("e.g. 30m, 12h, 7d, 2w — leave empty for permanent"))
     .addStringOption((o) => o.setName("reason").setDescription("Shown in their DM and the audit log").setMaxLength(200)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const member = i.options.getUser("member", true);
     if (member.bot || member.id === i.user.id) {
       await i.editReply("You can't mute that member.");
@@ -313,7 +313,7 @@ export const unmute: Command = {
     .setDescription("Unmute someone in every server.")
     .addUserOption((o) => o.setName("member").setDescription("Who to unmute").setRequired(true)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const member = i.options.getUser("member", true);
     const { failed } = await unmuteMember(member.id);
     line("moderation", `🔊 ${i.user} unmuted ${member}`);
@@ -328,10 +328,10 @@ export const linkall: Command = {
   data: new SlashCommandBuilder().setName("linkall").setDescription("Auto-link everyone in this server who verified with Bloxlink / RoVer."),
   async execute(i) {
     if (!autoLinkEnabled()) {
-      await i.reply({ ephemeral: true, content: "Auto-link is off. Set `autoLink.provider` in config.json and its API key in .env." });
+      await i.reply({ flags: MessageFlags.Ephemeral, content: "Auto-link is off. Set `autoLink.provider` in config.json and its API key in .env." });
       return;
     }
-    await i.reply({ ephemeral: true, content: "Linking everyone who's verified… this takes about a second per unlinked member. I'll post the result in the moderation log." });
+    await i.reply({ flags: MessageFlags.Ephemeral, content: "Linking everyone who's verified… this takes about a second per unlinked member. I'll post the result in the moderation log." });
     linkAll()
       .then(({ checked, linked }) => line("moderation", `🔗 /linkall by ${i.user}: linked ${linked} of ${checked} unlinked member(s)`))
       .catch((err) => line("moderation", `⚠️ /linkall failed: ${errText(err)}`));

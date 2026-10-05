@@ -2,7 +2,7 @@
 //
 // The main server gets every command. Each branch's own server gets the player
 // commands plus a branch-scoped /rank for its officers (see branch.ts).
-import { Events, type Client, type Interaction } from "discord.js";
+import { Events, type Client, type Interaction, MessageFlags } from "discord.js";
 import { branchOfGuild, config } from "../config.js";
 import { log } from "../log.js";
 import { allowed } from "./permissions.js";
@@ -70,7 +70,7 @@ async function handle(interaction: Interaction) {
   const command = (branch ? branchByName : mainByName).get(interaction.commandName);
   if (!command) return;
   if (command.staff && !allowed(interaction)) {
-    await interaction.reply({ ephemeral: true, content: "You don't have permission to use this command." });
+    await interaction.reply({ flags: MessageFlags.Ephemeral, content: "You don't have permission to use this command." });
     return;
   }
   try {
@@ -79,7 +79,7 @@ async function handle(interaction: Interaction) {
     log.error(`/${interaction.commandName} failed:`, err);
     const content = `Something went wrong: ${err instanceof Error ? err.message : err}`;
     if (interaction.deferred || interaction.replied) await interaction.editReply(content).catch(() => undefined);
-    else await interaction.reply({ ephemeral: true, content }).catch(() => undefined);
+    else await interaction.reply({ flags: MessageFlags.Ephemeral, content }).catch(() => undefined);
   }
 }
 

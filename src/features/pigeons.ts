@@ -14,6 +14,7 @@ import {
   TextInputStyle,
   type Client,
   type User,
+  MessageFlags,
 } from "discord.js";
 import { store } from "../store.js";
 import { on, who } from "../bridge/events.js";
@@ -96,7 +97,7 @@ export function registerPigeons(client: Client) {
       await interaction.showModal(modal);
     } else if (interaction.isModalSubmit() && interaction.customId.startsWith("pigeon_send:")) {
       const [, userId, name] = interaction.customId.split(":");
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const error = await sendPigeonFromDiscord(interaction.user, Number(userId), name, interaction.fields.getTextInputValue("text")).catch(
         (err) => `The pigeon couldn't take off: ${err instanceof Error ? err.message : err}`,
       );

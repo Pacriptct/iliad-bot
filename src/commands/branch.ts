@@ -5,7 +5,7 @@
 // THEIR branch, only to ranks below their own, and only people ranked below
 // them. Recruiting someone with no branch is allowed; pulling someone out of
 // another branch goes through /transfer (see features/transfers.ts).
-import { PermissionFlagsBits, SlashCommandBuilder, type BaseInteraction } from "discord.js";
+import { PermissionFlagsBits, SlashCommandBuilder, type BaseInteraction, MessageFlags } from "discord.js";
 import { branchOfGuild, config } from "../config.js";
 import { store } from "../store.js";
 import { resolvePlayer } from "../features/resolve.js";
@@ -41,7 +41,7 @@ export const branchRank: Command = {
     .addStringOption((o) => o.setName("player").setDescription("Roblox username, user id, or @member").setRequired(true))
     .addStringOption((o) => o.setName("rank").setDescription("New rank, or None to discharge").setRequired(true).setAutocomplete(true)),
   async execute(i) {
-    await i.deferReply({ ephemeral: true });
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
     const { branch, level } = officerLevel(i);
     if (!branch || level < 0) {
       await i.editReply("Only this branch's officers can change ranks here.");
