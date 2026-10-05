@@ -46,6 +46,12 @@ export async function dispatch(event: GameEvent, meta: BatchMeta) {
   }
 }
 
+/** **Character** (username), or **username** if they have no character. */
+export function name(p?: Partial<PlayerInfo>): string {
+  if (!p) return "**Unknown**";
+  return p.Character ? `**${p.Character}** (${p.Name})` : `**${p.Name ?? "Unknown"}**`;
+}
+
 /** "Character (username)" or just the username. */
 export function who(p?: PlayerInfo): string {
   if (!p) return "Unknown";

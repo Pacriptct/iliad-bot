@@ -22,7 +22,7 @@ import { Events, type Client, type GuildMember } from "discord.js";
 import { allGuilds, branchGuild, branchOfGuild, config, type RoleRule } from "../config.js";
 import { log } from "../log.js";
 import { store } from "../store.js";
-import { on, who, type PlayerInfo } from "../bridge/events.js";
+import { name, on, type PlayerInfo } from "../bridge/events.js";
 import { queueAction } from "../bridge/game.js";
 import { line, lineTo } from "./channels.js";
 
@@ -157,8 +157,8 @@ export function registerRanks(c: Client) {
     const branch = inBranch(p.Branch);
     const where = `*(changed in ${p.Source === "discord" ? "Discord" : "game"})*`;
     const text = branch
-      ? `<t:${e.At}:T> 🎖️ **${who(p)}** is now **${p.Rank || "—"}** in **${config.branches[branch].name}** ${where}`
-      : `<t:${e.At}:T> 🎖️ **${who(p)}** left **${(before?.branch && config.branches[before.branch]?.name) || "their branch"}** ${where}`;
+      ? `🎖️ ${name(p)} is now **${p.Rank || "—"}** in **${config.branches[branch].name}** ${where}`
+      : `🎖️ ${name(p)} left **${(before?.branch && config.branches[before.branch]?.name) || "their branch"}** ${where}`;
     logRank(text, branch, before?.branch);
     if (p.Source !== "discord") await syncFromGame(p);
     else store.setRank(p.UserId, p.Branch, p.Rank);

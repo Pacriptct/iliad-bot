@@ -17,7 +17,7 @@ import {
   MessageFlags,
 } from "discord.js";
 import { store } from "../store.js";
-import { on, who } from "../bridge/events.js";
+import { name, on } from "../bridge/events.js";
 import { queueAction } from "../bridge/game.js";
 import { line } from "./channels.js";
 import { ensureLinked } from "./autolink.js";
@@ -50,7 +50,7 @@ export async function sendPigeonFromDiscord(sender: User, toUserId: number, toNa
 
 export function registerPigeons(client: Client) {
   on("pigeon_out", async (e) => {
-    line("pigeons", `🕊️ **${who(e.From)}** → **${e.ToName}**: ${String(e.Text).replace(/@/g, "@​").slice(0, 300)}`);
+    line("pigeons", `🕊️ ${name(e.From)} → **${e.ToName}**: ${String(e.Text).replace(/@/g, "@​").slice(0, 300)}`);
     const link = store.linkByRoblox(Number(e.ToUserId));
     if (!link) return;
     const user = await client.users.fetch(link.discordId).catch(() => undefined);

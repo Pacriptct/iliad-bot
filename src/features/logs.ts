@@ -1,12 +1,19 @@
-// Routes game events to their log channels.
+// Routes game events to their log channels. Lines are grouped into cards per
+// log kind by channels.ts (which also stamps the time), so lines here stay short:
+//   emoji  **Character** (username)  what happened  · `server`
 import { EmbedBuilder } from "discord.js";
-import { on, who, type BatchMeta, type PlayerInfo } from "../bridge/events.js";
+import { config } from "../config.js";
+import { name, on, type BatchMeta, type PlayerInfo } from "../bridge/events.js";
 import { store } from "../store.js";
+import { rankOrder } from "./ranks.js";
 import { embed, line } from "./channels.js";
 
-const ts = (at: number) => `<t:${at}:T>`;
-const tag = (meta: BatchMeta) => (meta.Studio ? " `[Studio]`" : "");
-const server = (meta: BatchMeta) => `\`${meta.JobId ? meta.JobId.slice(0, 8) : "studio"}\``;
+const asPlayer = (e: unknown) => e as PlayerInfo;
+/** Trailing server tag: · `0a1e5fe2` (+ Studio). */
+const at = (meta: BatchMeta) => ` · \`${meta.JobId ? meta.JobId.slice(0, 8) : "studio"}\`${meta.Studio ? " *(Studio)*" : ""}`;
+/** Keep player-written text from pinging anyone or breaking formatting. */
+const quote = (text: unknown) => String(text ?? "").replace(/@/g, "@\u200b").replace(/`/g, "ˋ");
+const branchName = (id?: string) => (id && config.branches[id]?.name) || id || "a branch";
 
 function offer(o: { Gold?: number; Items?: Record<string, number> } | undefined): string {
   if (!o) return "nothing";
@@ -16,7 +23,7 @@ function offer(o: { Gold?: number; Items?: Record<string, number> } | undefined)
   return parts.length ? parts.join(", ") : "nothing";
 }
 
-/** "killed by a titan (Abnormal)", "shot by Bob", ... */
+/** "was killed by a titan (Abnormal)", "was shot by **Bob**", ... */
 function deathCause(e: { Cause?: string; Killer?: string; [key: string]: unknown }): string {
   const by = e.Killer ? `**${e.Killer}**` : undefined;
   switch (e.Cause) {
@@ -44,87 +51,117 @@ function dropped(d?: { Gold?: number; Items?: Record<string, number>; Tools?: st
   for (const [id, n] of Object.entries(d.Items ?? {})) parts.push(`${n}× ${id}`);
   parts.push(...(d.Tools ?? []));
   if (d.GearParts) parts.push(`${d.GearParts} gear part${d.GearParts === 1 ? "" : "s"}`);
-  return parts.length ? ` — dropped ${parts.join(", ")}` : "";
+  return parts.length ? `\n-# Dropped: ${parts.join(", ")}` : "";
+}
+
+/** Chat kinds from the game's ChatService. */
+const CHAT: Record<string, { emoji: string; verb: string }> = {
+  N: { emoji: "💬", verb: "" },
+  W: { emoji: "🤫", verb: " *(whisper)*" },
+  T: { emoji: "💭", verb: " *(thought)*" },
+  S: { emoji: "📢", verb: " *(shout)*" },
+  K: { emoji: "🤐", verb: " *(knocked out)*" },
+  SYS: { emoji: "⚙️", verb: " *(system)*" },
+  PM: { emoji: "✉️", verb: " *(private message)*" },
+};
+
+/** A branch audit event as one readable line. */
+function branchLine(e: Record<string, any>): string {
+  const target = `**${e.targetName ?? "Someone"}**`;
+  const actor = e.actorName ? ` · by ${e.actorName}` : "";
+  const note = e.note ? ` · *${e.note}*` : "";
+  const branch = `**${branchName(e.bid) || e.branchName}**`;
+  switch (e.eventType) {
+    case "promote":
+    case "demote": {
+      const up = rankOrder(e.bid, e.newRank) >= rankOrder(e.bid, e.oldRank);
+      const known = rankOrder(e.bid, e.newRank) >= 0 && rankOrder(e.bid, e.oldRank) >= 0;
+      const dir = known ? (up ? "promoted" : "demoted") : e.eventType === "promote" ? "promoted" : "demoted";
+      return `${dir === "promoted" ? "⬆️" : "⬇️"} ${target} ${dir}: ${e.oldRank ?? "?"} → **${e.newRank ?? "?"}** in ${branch}${actor}${note}`;
+    }
+    case "join":
+      return `➕ ${target} joined ${branch}${e.newRank ? ` as **${e.newRank}**` : ""}${actor}${note}`;
+    case "leave":
+      return `➖ ${target} left ${branch}${actor}${note}`;
+    case "kick":
+      return `👢 ${target} was removed from ${branch}${actor}${note}`;
+    case "transfer":
+      return `🔁 ${target} transferred to ${branch}${e.newRank ? ` as **${e.newRank}**` : ""}${actor}${note}`;
+    default:
+      return `🏷️ ${target}: ${e.eventType} in ${branch}${actor}${note}`;
+  }
 }
 
 export function registerLogs() {
   on("join", (e, meta) => {
     store.updateRobloxName(e.UserId, e.Name);
-    line("joins", `${ts(e.At)} 🟢 **${who(e as unknown as PlayerInfo)}** joined ${server(meta)}${e.WipeState ? " *(wiped / creating character)*" : ""}${tag(meta)}`);
+    line("joins", `🟢 ${name(asPlayer(e))} joined${e.WipeState ? " *(new character)*" : ""}${at(meta)}`);
   });
   on("leave", (e, meta) => {
-    line("joins", `${ts(e.At)} 🔴 **${who(e as unknown as PlayerInfo)}** left ${server(meta)}${tag(meta)}`);
+    line("joins", `🔴 ${name(asPlayer(e))} left${at(meta)}`);
   });
-  on("server_start", (e, meta) => line("servers", `${ts(e.At)} ▶️ Server ${server(meta)} started${tag(meta)}`));
-  on("server_close", (e, meta) => line("servers", `${ts(e.At)} ⏹️ Server ${server(meta)} closed (${e.Players ?? 0} players)${tag(meta)}`));
+  on("server_start", (_e, meta) => line("servers", `▶️ Server started${at(meta)}`));
+  on("server_close", (e, meta) => line("servers", `⏹️ Server closed${e.Players ? ` with ${e.Players} player${e.Players === 1 ? "" : "s"}` : ""}${at(meta)}`));
 
   on("chat", (e, meta) => {
-    line("chat", `${ts(e.At)} ${server(meta)} [${e.Kind}] **${e.Sender}**: ${String(e.Text ?? "").replace(/@/g, "@​")}`);
+    const kind = CHAT[String(e.Kind)] ?? { emoji: "💬", verb: ` *(${e.Kind})*` };
+    line("chat", `${kind.emoji} **${e.Sender}**${kind.verb}: ${quote(e.Text)}${at(meta)}`);
   });
 
   on("admin_command", (e, meta) => {
-    line("adminCommands", `${ts(e.At)} 🛠️ **${who(e.By)}** ran \`${String(e.Content).replace(/`/g, "ˋ")}\` in ${server(meta)}${tag(meta)}`);
+    line("adminCommands", `🛠️ ${name(e.By)} ran \`${quote(e.Content)}\`${at(meta)}`);
   });
 
   on("death", (e, meta) => {
-    const pos = Array.isArray(e.Position) ? ` at \`${e.Position.join(", ")}\`` : "";
-    line(
-      "deaths",
-      `${ts(e.At)} 💀 **${who(e as unknown as PlayerInfo)}** ${deathCause(e)}${e.DuringPD ? " **during a PD**" : ""}${pos} in ${server(meta)}${dropped(e.Dropped)}${tag(meta)}`,
-    );
+    const pos = Array.isArray(e.Position) ? ` at ${e.Position.join(", ")}` : "";
+    line("deaths", `💀 ${name(asPlayer(e))} ${deathCause(e)}${e.DuringPD ? " **during a PD**" : ""}${pos}${at(meta)}${dropped(e.Dropped)}`);
   });
 
   on("item_drop", (e, meta) => {
     const what = `${e.Count > 1 ? `${e.Count}× ` : ""}${e.Item}`;
     const why = e.Reason === "overflow" ? " *(didn't fit)*" : "";
-    line("items", `${ts(e.At)} 📦 **${who(e as unknown as PlayerInfo)}** dropped ${what}${why} in ${server(meta)}${tag(meta)}`);
+    line("items", `📦 ${name(asPlayer(e))} dropped ${what}${why}${at(meta)}`);
   });
   on("item_pickup", (e, meta) => {
     const what = `${e.Count > 1 ? `${e.Count}× ` : ""}${e.Item}`;
-    line("items", `${ts(e.At)} ✋ **${who(e as unknown as PlayerInfo)}** picked up ${what} dropped by **${e.DroppedBy ?? e.DroppedById}** in ${server(meta)}${tag(meta)}`);
+    line("items", `✋ ${name(asPlayer(e))} picked up ${what} dropped by **${e.DroppedBy ?? e.DroppedById}**${at(meta)}`);
   });
   on("corpse_loot", (e, meta) => {
     const taken = Array.isArray(e.Taken) ? e.Taken.join(", ") : "something";
-    line("loot", `${ts(e.At)} 🪦 **${who(e as unknown as PlayerInfo)}** looted **${e.OwnerName}**'s body: ${taken} in ${server(meta)}${tag(meta)}`);
+    line("loot", `🪦 ${name(asPlayer(e))} looted **${e.OwnerName}**'s body: ${taken}${at(meta)}`);
   });
 
-  on("titan_kill", (e) => {
-    line("titanKills", `${ts(e.At)} ⚔️ **${who(e as unknown as PlayerInfo)}** killed ${e.Titan ? `a ${e.Titan}` : "a titan"} (total ${e.Total ?? "?"})`);
+  on("titan_kill", (e, meta) => {
+    line("titanKills", `⚔️ ${name(asPlayer(e))} killed ${e.Titan ? `a ${e.Titan}` : "a titan"} · ${e.Total ?? "?"} total${at(meta)}`);
   });
 
   on("trade", (e) => {
     embed(
       "trades",
       new EmbedBuilder()
-        .setColor(0xfabc22)
-        .setTitle("Trade completed")
+        .setAuthor({ name: "Trade" })
+        .setDescription(`🤝 ${name(e.A)} ⇄ ${name(e.B)}`)
         .addFields(
-          { name: who(e.A), value: offer(e.OfferA), inline: true },
-          { name: who(e.B), value: offer(e.OfferB), inline: true },
+          { name: `${e.A?.Character || e.A?.Name || "?"} gave`, value: offer(e.OfferA), inline: true },
+          { name: `${e.B?.Character || e.B?.Name || "?"} gave`, value: offer(e.OfferB), inline: true },
         )
         .setTimestamp(e.At * 1000),
     );
   });
 
   on("crate_pick", (e) => {
-    line("crates", `${ts(e.At)} 🔓 **${who(e.By)}** picked the lock on **${e.OwnerName}**'s crate (\`${e.CrateId}\`, ${Math.round((e.Chance ?? 0) * 100)}% chance)`);
+    line("crates", `🔓 ${name(e.By)} picked the lock on **${e.OwnerName}**'s crate · ${Math.round((e.Chance ?? 0) * 100)}% chance`);
   });
   on("crate_theft", (e) => {
-    line("crates", `${ts(e.At)} 🧺 **${who(e.By)}** took ${e.What} from **${e.OwnerName}**'s crate (\`${e.CrateId}\`)`);
+    line("crates", `🧺 ${name(e.By)} took ${e.What} from **${e.OwnerName}**'s crate`);
   });
 
-  on("branch", (e) => {
-    const fields = Object.entries(e)
-      .filter(([k]) => !["Type", "At"].includes(k))
-      .map(([k, v]) => `**${k}**: ${String(v)}`)
-      .join("\n");
-    embed("branchAudit", new EmbedBuilder().setColor(0x4ab6ff).setTitle(`Branch: ${e.eventType}`).setDescription(fields.slice(0, 4000)).setTimestamp(e.At * 1000));
-  });
+  on("branch", (e) => line("branchAudit", branchLine(e)));
 
   on("action_applied", (e) => {
-    line("moderation", `${ts(e.At)} ✅ \`${e.Kind}\` applied to **${e.Name}** (\`${e.UserId}\`) — queued by ${e.By}`);
+    line("moderation", `✅ ${e.Kind} applied to **${e.Name}** · queued by ${e.By}`);
   });
   on("announce_failed", (e) => {
-    line("moderation", `${ts(e.At)} ⚠️ Announcement from ${e.By} was blocked by the Roblox filter`);
+    line("moderation", `⚠️ An announcement from ${e.By} was blocked by the Roblox filter`);
   });
 }

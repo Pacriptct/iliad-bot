@@ -64,14 +64,15 @@ export function registerPd() {
         });
         break;
       case "pd_death":
-        line("pdLog", `<t:${e.At}:T> 💀 **${e.playerName}** fell in the ${type} PD`);
+        line("pdLog", `💀 **${e.playerName}** fell in the ${type} PD`);
         break;
       case "pd_mia":
-        line("pdLog", `<t:${e.At}:T> 🚪 **${e.playerName}** left during the ${type} PD (MIA)`);
+        line("pdLog", `🚪 **${e.playerName}** left during the ${type} PD *(MIA)*`);
         break;
     }
     if (e.eventType === "pd_start" || e.eventType === "pd_end" || e.eventType === "pd_type") {
-      embed("pdLog", new EmbedBuilder().setColor(COLORS[e.eventType] ?? 0x888888).setDescription(`\`${e.eventType}\` · ${type} · by ${e.executorName}`).setTimestamp(e.At * 1000));
+      const what = { pd_start: `🔴 ${type} PD started`, pd_end: `🟣 ${type} PD ended`, pd_type: `🔵 PD changed to ${type}` }[e.eventType as "pd_start"];
+      line("pdLog", `${what}${e.executorName ? ` · by ${e.executorName}` : ""}`);
     }
   });
 }
