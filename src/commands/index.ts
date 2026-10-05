@@ -7,7 +7,7 @@ import { branchOfGuild, config } from "../config.js";
 import { log } from "../log.js";
 import { allowed } from "./permissions.js";
 import { link, unlink, pigeon, whois } from "./player.js";
-import { lookup, kick, ban, unban, warn, voidCmd, rank } from "./moderation.js";
+import { lookup, kick, ban, unban, warn, voidCmd, rank, mute, unmute, linkall } from "./moderation.js";
 import { announce, servers, shutdown, restart, status, targetChoices } from "./server.js";
 import { branchRank, officerLevel } from "./branch.js";
 import { transferCmd } from "../features/transfers.js";
@@ -24,8 +24,11 @@ export const mainCommands: Command[] = [
   ban,
   unban,
   warn,
+  mute,
+  unmute,
   voidCmd,
   rank,
+  linkall,
   announce,
   servers,
   shutdown,

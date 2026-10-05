@@ -10,6 +10,7 @@ import { findPlayer } from "../bridge/servers.js";
 import { getBan, setBan } from "../roblox/openCloud.js";
 import { checkHealth, formatDuration, loadProfile } from "../roblox/profile.js";
 import { profileUrl, type RobloxUser } from "../roblox/users.js";
+import { autoLinkEnabled, linkAll } from "../features/autolink.js";
 import type { Command } from "./types.js";
 
 const playerOption = (b: SlashCommandBuilder) =>
@@ -32,6 +33,14 @@ function parseDuration(text: string | null): number | undefined | null {
   const n = Number(m[1]);
   const unit = { m: 60, h: 3600, d: 86400, w: 604800 }[m[2].toLowerCase() as "m" | "h" | "d" | "w"];
   return n * unit;
+}
+
+/** Profile mute fields -> a status line. */
+function muteText(until: unknown, reason: unknown): string {
+  const ts = Number(until) || 0;
+  if (ts === 0 || (ts > 0 && ts * 1000 <= Date.now())) return "Not muted";
+  const why = typeof reason === "string" && reason ? `: ${reason}` : "";
+  return ts < 0 ? `🔇 Muted permanently${why}` : `🔇 Muted until <t:${ts}:f>${why}`;
 }
 
 // ── /lookup ──────────────────────────────────────────────────────────────────
@@ -73,6 +82,7 @@ export const lookup: Command = {
             server ? `🟢 Online (\`${server.jobId.slice(0, 8)}\`)` : session ? "🟡 Session open (may be in game)" : "⚫ Offline",
             d.WipeState ? "☠️ **Wiped** (creating a character)" : "Alive",
             ban?.active ? `⛔ Banned${ban.duration ? ` (${ban.duration})` : " permanently"}: ${ban.privateReason ?? ""}` : "Not banned",
+            muteText(d.MutedUntil, d.MuteReason),
             link ? `Linked: <@${link.discordId}>` : "Not linked",
           ].join("\n"),
           inline: true,
@@ -254,5 +264,75 @@ export const rank: Command = {
     } catch (err) {
       await i.editReply(`Failed: ${errText(err)}`);
     }
+  },
+};
+
+// ── /mute /unmute ───────────────────────────────────────────────────────────
+
+export const mute: Command = {
+  staff: true,
+  data: playerOption(new SlashCommandBuilder().setName("mute").setDescription("Mute a player in game chat (and pigeons)."))
+    .addStringOption((o) => o.setName("duration").setDescription("e.g. 30m, 12h, 7d, 2w — leave empty for permanent"))
+    .addStringOption((o) => o.setName("reason").setDescription("Shown to the player").setMaxLength(200)),
+  async execute(i) {
+    await i.deferReply({ ephemeral: true });
+    const user = await target(i);
+    if (!user) return;
+    const seconds = parseDuration(i.options.getString("duration"));
+    if (seconds === null) {
+      await i.editReply("Couldn't read that duration. Use something like `30m`, `12h`, `7d` or `2w`, or leave it empty for permanent.");
+      return;
+    }
+    const reason = i.options.getString("reason") ?? "";
+    const until = seconds === undefined ? -1 : Math.floor(Date.now() / 1000) + seconds;
+    const length = seconds === undefined ? "permanently" : `for ${formatDuration(seconds)}`;
+    try {
+      await queueAction(user.id, "mute", { Until: until, Reason: reason }, staffName(i));
+      store.setMute(user.id, { until: until === -1 ? -1 : until * 1000, reason, by: i.user.username });
+      const link = store.linkByRoblox(user.id);
+      if (link) {
+        const member = await i.client.users.fetch(link.discordId).catch(() => undefined);
+        await member?.send(`🔇 You've been muted in game ${length}${reason ? `: ${reason}` : "."}`).catch(() => undefined);
+      }
+      line("moderation", `🔇 ${i.user} muted **${user.name}** (\`${user.id}\`) ${length}${reason ? `: ${reason}` : ""}`);
+      await i.editReply(`Muted **${user.name}** ${length}. Applies right away if they're online, otherwise when they next join.`);
+    } catch (err) {
+      await i.editReply(`Failed: ${errText(err)}`);
+    }
+  },
+};
+
+export const unmute: Command = {
+  staff: true,
+  data: playerOption(new SlashCommandBuilder().setName("unmute").setDescription("Unmute a player.")),
+  async execute(i) {
+    await i.deferReply({ ephemeral: true });
+    const user = await target(i);
+    if (!user) return;
+    try {
+      await queueAction(user.id, "unmute", {}, staffName(i));
+      store.setMute(user.id, undefined);
+      line("moderation", `🔊 ${i.user} unmuted **${user.name}** (\`${user.id}\`)`);
+      await i.editReply(`Unmuted **${user.name}**.`);
+    } catch (err) {
+      await i.editReply(`Failed: ${errText(err)}`);
+    }
+  },
+};
+
+// ── /linkall ────────────────────────────────────────────────────────────────
+
+export const linkall: Command = {
+  staff: true,
+  data: new SlashCommandBuilder().setName("linkall").setDescription("Auto-link everyone in this server who verified with Bloxlink / RoVer."),
+  async execute(i) {
+    if (!autoLinkEnabled()) {
+      await i.reply({ ephemeral: true, content: "Auto-link is off. Set `autoLink.provider` in config.json and its API key in .env." });
+      return;
+    }
+    await i.reply({ ephemeral: true, content: "Linking everyone who's verified… this takes about a second per unlinked member. I'll post the result in the moderation log." });
+    linkAll()
+      .then(({ checked, linked }) => line("moderation", `🔗 /linkall by ${i.user}: linked ${linked} of ${checked} unlinked member(s)`))
+      .catch((err) => line("moderation", `⚠️ /linkall failed: ${errText(err)}`));
   },
 };

@@ -11,6 +11,7 @@ import { registerRanks } from "./features/ranks.js";
 import { registerLinking } from "./features/linking.js";
 import { registerPigeons } from "./features/pigeons.js";
 import { registerTransfers } from "./features/transfers.js";
+import { registerAutoLink } from "./features/autolink.js";
 import { registerCommands } from "./commands/index.js";
 
 const client = new Client({
@@ -25,6 +26,7 @@ registerRanks(client);
 registerLinking(client);
 registerPigeons(client);
 registerTransfers(client);
+registerAutoLink(client);
 registerCommands(client);
 
 client.once(Events.ClientReady, async (c) => {

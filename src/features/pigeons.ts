@@ -19,13 +19,15 @@ import { store } from "../store.js";
 import { on, who } from "../bridge/events.js";
 import { queueAction } from "../bridge/game.js";
 import { line } from "./channels.js";
+import { ensureLinked } from "./autolink.js";
 
 export const MAX_LETTER = 1000;
 
 /** Send a letter from a linked Discord user to a Roblox user. Returns an error message or undefined. */
 export async function sendPigeonFromDiscord(sender: User, toUserId: number, toName: string, text: string): Promise<string | undefined> {
-  const link = store.linkByDiscord(sender.id);
+  const link = await ensureLinked(sender.id);
   if (!link) return "You need to link your Roblox account first (`/link`).";
+  if (store.muteOf(link.robloxId)) return "You're muted, so you can't send pigeons right now.";
   if (toUserId === link.robloxId) return "You can't send a letter to yourself.";
   const body = text.trim();
   if (!body || body.length > MAX_LETTER) return `Letters must be 1-${MAX_LETTER} characters.`;

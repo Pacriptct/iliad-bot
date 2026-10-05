@@ -52,9 +52,17 @@
     "restart": "admin",
     "rank": "admin",
     "status": "moderator",
-    "whois": "moderator"
+    "whois": "moderator",
+    "mute": "moderator",
+    "unmute": "moderator",
+    "linkall": "admin"
   },
   "linkedRole": "",
+  "autoLink": {
+    "provider": "bloxlink",
+    "guildId": "",
+    "dm": true
+  },
   "removeBranchWhenRankRoleRemoved": false,
   "allowDiscordTransfers": false,
   "roleRules": [

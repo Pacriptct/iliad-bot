@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { config, placeName, resolvePlace } from "../config.js";
-import { store } from "../store.js";
+import { ensureLinked } from "../features/autolink.js";
 import { line } from "../features/channels.js";
 import { game } from "../bridge/game.js";
 import { on } from "../bridge/events.js";
@@ -42,7 +42,7 @@ export const announce: Command = {
   async execute(i) {
     await i.deferReply({ ephemeral: true });
     // Roblox requires text to be filtered as written by a real account.
-    const link = store.linkByDiscord(i.user.id);
+    const link = await ensureLinked(i.user.id);
     if (!link) {
       await i.editReply("Link your Roblox account first (`/link`) — announcements are filtered as written by you.");
       return;

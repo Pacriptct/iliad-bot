@@ -44,6 +44,7 @@ interface Data {
   warnings: Record<string, Warning[]>; // robloxId -> warnings
   ranks: Record<string, KnownRank>; // robloxId -> last known branch/rank
   transfers: Record<string, Transfer>; // id -> transfer request
+  mutes: Record<string, { until: number; reason: string; by: string }>; // robloxId -> mute (until: ms, -1 = permanent)
 }
 
 const dir = resolve(process.cwd(), "data");
@@ -51,10 +52,10 @@ const file = resolve(dir, "store.json");
 
 function load(): Data {
   if (!existsSync(file)) {
-    return { links: {}, codes: {}, warnings: {}, ranks: {}, transfers: {} };
+    return { links: {}, codes: {}, warnings: {}, ranks: {}, transfers: {}, mutes: {} };
   }
   const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<Data>;
-  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {}, ranks: parsed.ranks ?? {}, transfers: parsed.transfers ?? {} };
+  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {}, ranks: parsed.ranks ?? {}, transfers: parsed.transfers ?? {}, mutes: parsed.mutes ?? {} };
 }
 
 const data = load();
@@ -141,6 +142,22 @@ export const store = {
     const old = data.ranks[String(robloxId)];
     if (old && old.branch === known.branch && old.rank === known.rank) return;
     data.ranks[String(robloxId)] = known;
+    save();
+  },
+
+  // ── Mutes (mirrors the game, so Discord pigeons respect them too) ────────
+  muteOf(robloxId: number): { until: number; reason: string; by: string } | undefined {
+    const m = data.mutes[String(robloxId)];
+    if (m && m.until !== -1 && m.until <= Date.now()) {
+      delete data.mutes[String(robloxId)];
+      save();
+      return undefined;
+    }
+    return m;
+  },
+  setMute(robloxId: number, mute: { until: number; reason: string; by: string } | undefined) {
+    if (mute) data.mutes[String(robloxId)] = mute;
+    else delete data.mutes[String(robloxId)];
     save();
   },
 

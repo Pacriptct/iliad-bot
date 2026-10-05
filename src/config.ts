@@ -86,6 +86,14 @@ export interface Config {
   allowDiscordTransfers: boolean;
   /** Extra roles given from game rank (see RoleRule). */
   roleRules: RoleRule[];
+  /** Link players automatically from Bloxlink / RoVer (key in .env). */
+  autoLink: {
+    provider: "bloxlink" | "rover" | "none";
+    /** Server the provider's API key belongs to ("" = main server). */
+    guildId: string;
+    /** DM people when they're auto-linked. */
+    dm: boolean;
+  };
   branches: Record<string, BranchConfig>;
 }
 
@@ -114,6 +122,11 @@ export const secrets = {
   get robloxApiKey() {
     return required("ROBLOX_API_KEY");
   },
+  /** Bloxlink server API key or RoVer API key (optional). */
+  get autoLinkKey(): string | undefined {
+    const name = config.autoLink.provider === "rover" ? "ROVER_API_KEY" : "BLOXLINK_API_KEY";
+    return process.env[name] || undefined;
+  },
 };
 
 if (!config.roblox.universeId) {
@@ -123,6 +136,8 @@ if (!config.roblox.universeId) {
 // Defaults for fields added after a config was written.
 config.allowDiscordTransfers ??= false;
 config.roleRules ??= [];
+config.autoLink ??= { provider: "none", guildId: "", dm: false };
+config.autoLink.guildId ??= "";
 config.roblox.places ??= {};
 {
   // Older configs had a bare placeIds list.

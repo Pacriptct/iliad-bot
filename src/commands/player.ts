@@ -5,20 +5,26 @@ import { store } from "../store.js";
 import { resolvePlayer } from "../features/resolve.js";
 import { sendPigeonFromDiscord, MAX_LETTER } from "../features/pigeons.js";
 import { applyRoles } from "../features/ranks.js";
+import { ensureLinked } from "../features/autolink.js";
 import { profileUrl } from "../roblox/users.js";
 import type { Command } from "./types.js";
 
 export const link: Command = {
   data: new SlashCommandBuilder().setName("link").setDescription("Link your Roblox account (keeps your branch roles in sync)."),
   async execute(i) {
-    const existing = store.linkByDiscord(i.user.id);
+    await i.deferReply({ ephemeral: true });
+    const before = store.linkByDiscord(i.user.id);
+    // Verified with Bloxlink / RoVer? Then there's nothing to do.
+    const auto = before ? undefined : await ensureLinked(i.user.id);
+    if (auto) {
+      await i.editReply(`✅ You're linked to Roblox **${auto.robloxName}** (from your ${config.autoLink.provider} verification). You're all set!`);
+      return;
+    }
     const code = store.createCode(i.user.id);
-    await i.reply({
-      ephemeral: true,
-      content:
-        (existing ? `You're currently linked to **${existing.robloxName}**. Linking again replaces it.\n\n` : "") +
+    await i.editReply(
+      (before ? `You're linked to **${before.robloxName}**. To switch accounts, use the code below on the new one.\n\n` : "") +
         `Join the game and type this in chat within 10 minutes:\n\`\`\`/link ${code}\`\`\``,
-    });
+    );
   },
 };
 

@@ -20,12 +20,14 @@ bot  ──(DataStore "IliadPending")─────────> offline player
 
 | Command | Who | What |
 |---|---|---|
-| `/link`, `/unlink` | everyone | Link a Roblox account (type the code in game chat) |
+| `/link`, `/unlink` | everyone | Link a Roblox account. Instant if they're verified with Bloxlink / RoVer, otherwise a code to type in game chat |
 | `/pigeon to message` | linked | Send a letter into the game |
 | `/whois player` | moderator | Show who's linked to whom |
 | `/lookup player [raw]` | moderator | Stats, branch/rank, wipe state, warnings, ban, **data health check**, optional raw JSON |
 | `/kick`, `/warn`, `/ban [duration] [alts]` | moderator | `duration` like `30m`, `12h`, `7d`, `2w`, or blank for permanent |
+| `/mute player [duration] [reason]`, `/unmute` | moderator | Mute in game: their chat goes nowhere and they can't send pigeons (in game or from Discord). Leave `duration` empty for permanent |
 | `/unban`, `/void`, `/rank` | admin | `/rank` updates both the game and Discord roles |
+| `/linkall` | admin | Auto-link everyone in the main server who's verified with Bloxlink / RoVer |
 | `/announce message [style]` | moderator | System chat message or shout on every server (you must be linked) |
 | `/servers`, `/status` | moderator | Live servers + players, and a bridge connection check |
 | `/shutdown target [reason]` | admin | `target` is one server (job id), one place (every server of it), or `all`. The list suggests live servers and your configured places. |
@@ -34,6 +36,27 @@ bot  ──(DataStore "IliadPending")─────────> offline player
 Permission tiers are set in `config.json` (`commandPermissions`). Members with Discord's Administrator permission count as owner. All of the commands above are in the main server.
 
 Each branch server gets `/link`, `/unlink`, `/pigeon`, and its own `/rank player rank` and `/transfer player [rank] [note]`, described below.
+
+## Linking (automatic)
+
+If your servers already use **Bloxlink** or **RoVer** for verification, players never have to do anything:
+
+- When someone joins the main server or a branch server, the bot asks Bloxlink / RoVer which Roblox account they verified, and links them.
+- Anyone who's still unlinked is looked up the moment they use `/link` or `/pigeon`, or when staff @mention them in a command.
+- Run `/linkall` once after setting this up to link everyone who's already in the main server.
+- Their roles are applied as soon as the bot knows their rank, which happens the next time they join the game.
+
+For players who aren't verified with either bot, `/link` gives them a 6-letter code to type in game chat, which takes about 10 seconds.
+
+**Setup:**
+
+1. In `config.json`, set `autoLink.provider` to `"bloxlink"` or `"rover"`. `autoLink.dm` sends people a short "you're linked" DM.
+2. Put the API key in `.env`:
+   - **Bloxlink:** Bloxlink dashboard → your main server → Developer / API → create a Server API key → `BLOXLINK_API_KEY`.
+   - **RoVer:** in your main server, run RoVer's API key command (see rover.link) → `ROVER_API_KEY`.
+3. The provider's bot has to be in your **main server**, and lookups go through the main server. If someone joins a branch server without being in the main server, they use `/link` instead.
+
+`/unlink` removes a link, but a Bloxlink / RoVer link comes straight back the next time they use a command. To link a different account, they use `/link` and type the code on that account.
 
 ## Branch servers
 
@@ -115,7 +138,7 @@ For the IP allowlist, enter your droplet's IP, or `0.0.0.0/0` while testing.
 ### 3. Config
 
 ```bash
-cp .env.example .env               # DISCORD_TOKEN, DISCORD_CLIENT_ID, ROBLOX_API_KEY
+cp .env.example .env               # DISCORD_TOKEN, DISCORD_CLIENT_ID, ROBLOX_API_KEY (+ BLOXLINK_API_KEY / ROVER_API_KEY)
 cp config.example.json config.json
 ```
 
