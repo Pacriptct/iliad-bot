@@ -180,7 +180,7 @@ If a branch's Discord ranks don't line up with the game's, for example the Disco
 
 The queue, topic and store names must match the game's `BotBridgeConfig` (defaults: `IliadOutbox`, `IliadBot`, `IliadPending`). `profileStore` must match the game's profile store (`FrameworkDevData_v.0003`).
 
-In game, set `BotBridgeConfig.Enabled = true` and publish. Studio needs **Enable Studio Access to API Services**.
+In game, set `BotBridgeConfig.Enabled = true` and **publish**. Test from a **live server** (join through the Roblox app), not a Studio play-test: Studio's MemoryStore is isolated from the live game's, so the bot never sees Studio events.
 
 ### 4. Run locally
 
