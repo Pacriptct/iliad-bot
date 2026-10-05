@@ -38,13 +38,21 @@ export interface Transfer {
   message?: { channelId: string; messageId: string };
 }
 
+export interface Mute {
+  /** When it ends (ms since epoch), or -1 for permanent. */
+  until: number;
+  reason: string;
+  by: string;
+  at: number;
+}
+
 interface Data {
   links: Record<string, Link>; // discordId -> link
   codes: Record<string, { discordId: string; expires: number }>;
   warnings: Record<string, Warning[]>; // robloxId -> warnings
   ranks: Record<string, KnownRank>; // robloxId -> last known branch/rank
   transfers: Record<string, Transfer>; // id -> transfer request
-  mutes: Record<string, { until: number; reason: string; by: string }>; // robloxId -> mute (until: ms, -1 = permanent)
+  mutes: Record<string, Mute>; // discordId -> Discord mute
 }
 
 const dir = resolve(process.cwd(), "data");
@@ -145,19 +153,24 @@ export const store = {
     save();
   },
 
-  // ── Mutes (mirrors the game, so Discord pigeons respect them too) ────────
-  muteOf(robloxId: number): { until: number; reason: string; by: string } | undefined {
-    const m = data.mutes[String(robloxId)];
+  // ── Discord mutes ────────────────────────────────────────────────────────
+  muteOf(discordId: string): Mute | undefined {
+    const m = data.mutes[discordId];
     if (m && m.until !== -1 && m.until <= Date.now()) {
-      delete data.mutes[String(robloxId)];
+      delete data.mutes[discordId];
       save();
       return undefined;
     }
     return m;
   },
-  setMute(robloxId: number, mute: { until: number; reason: string; by: string } | undefined) {
-    if (mute) data.mutes[String(robloxId)] = mute;
-    else delete data.mutes[String(robloxId)];
+  activeMutes(): [string, Mute][] {
+    return Object.keys(data.mutes)
+      .map((id) => [id, this.muteOf(id)] as [string, Mute | undefined])
+      .filter((e): e is [string, Mute] => e[1] !== undefined);
+  },
+  setMute(discordId: string, mute: Mute | undefined) {
+    if (mute) data.mutes[discordId] = mute;
+    else delete data.mutes[discordId];
     save();
   },
 

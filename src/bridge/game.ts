@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { config } from "../config.js";
 import { publish, updateEntry } from "../roblox/openCloud.js";
 
-export type ActionKind = "void" | "setRank" | "pigeon" | "warn" | "notice" | "mute" | "unmute";
+export type ActionKind = "void" | "setRank" | "pigeon" | "warn" | "notice";
 
 export interface PendingAction {
   Id: string;

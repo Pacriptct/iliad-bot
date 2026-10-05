@@ -27,7 +27,6 @@ export const MAX_LETTER = 1000;
 export async function sendPigeonFromDiscord(sender: User, toUserId: number, toName: string, text: string): Promise<string | undefined> {
   const link = await ensureLinked(sender.id);
   if (!link) return "You need to link your Roblox account first (`/link`).";
-  if (store.muteOf(link.robloxId)) return "You're muted, so you can't send pigeons right now.";
   if (toUserId === link.robloxId) return "You can't send a letter to yourself.";
   const body = text.trim();
   if (!body || body.length > MAX_LETTER) return `Letters must be 1-${MAX_LETTER} characters.`;

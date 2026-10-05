@@ -11,6 +11,7 @@ import { getBan, setBan } from "../roblox/openCloud.js";
 import { checkHealth, formatDuration, loadProfile } from "../roblox/profile.js";
 import { profileUrl, type RobloxUser } from "../roblox/users.js";
 import { autoLinkEnabled, linkAll } from "../features/autolink.js";
+import { muteMember, unmuteMember } from "../features/mutes.js";
 import type { Command } from "./types.js";
 
 const playerOption = (b: SlashCommandBuilder) =>
@@ -35,12 +36,12 @@ function parseDuration(text: string | null): number | undefined | null {
   return n * unit;
 }
 
-/** Profile mute fields -> a status line. */
-function muteText(until: unknown, reason: unknown): string {
-  const ts = Number(until) || 0;
-  if (ts === 0 || (ts > 0 && ts * 1000 <= Date.now())) return "Not muted";
-  const why = typeof reason === "string" && reason ? `: ${reason}` : "";
-  return ts < 0 ? `🔇 Muted permanently${why}` : `🔇 Muted until <t:${ts}:f>${why}`;
+/** A linked member's Discord mute -> a status line. */
+function muteText(discordId: string | undefined): string | undefined {
+  const m = discordId ? store.muteOf(discordId) : undefined;
+  if (!m) return undefined;
+  const why = m.reason ? `: ${m.reason}` : "";
+  return m.until === -1 ? `🔇 Muted on Discord permanently${why}` : `🔇 Muted on Discord until <t:${Math.floor(m.until / 1000)}:f>${why}`;
 }
 
 // ── /lookup ──────────────────────────────────────────────────────────────────
@@ -82,9 +83,11 @@ export const lookup: Command = {
             server ? `🟢 Online (\`${server.jobId.slice(0, 8)}\`)` : session ? "🟡 Session open (may be in game)" : "⚫ Offline",
             d.WipeState ? "☠️ **Wiped** (creating a character)" : "Alive",
             ban?.active ? `⛔ Banned${ban.duration ? ` (${ban.duration})` : " permanently"}: ${ban.privateReason ?? ""}` : "Not banned",
-            muteText(d.MutedUntil, d.MuteReason),
             link ? `Linked: <@${link.discordId}>` : "Not linked",
-          ].join("\n"),
+            muteText(link?.discordId),
+          ]
+            .filter(Boolean)
+            .join("\n"),
           inline: true,
         },
         { name: "Branch", value: branch, inline: true },
@@ -267,56 +270,54 @@ export const rank: Command = {
   },
 };
 
-// ── /mute /unmute ───────────────────────────────────────────────────────────
+// ── /mute /unmute (Discord) ─────────────────────────────────────────────────
 
 export const mute: Command = {
   staff: true,
-  data: playerOption(new SlashCommandBuilder().setName("mute").setDescription("Mute a player in game chat (and pigeons)."))
+  data: new SlashCommandBuilder()
+    .setName("mute")
+    .setDescription("Mute (time out) someone in the main server and every branch server.")
+    .addUserOption((o) => o.setName("member").setDescription("Who to mute").setRequired(true))
     .addStringOption((o) => o.setName("duration").setDescription("e.g. 30m, 12h, 7d, 2w — leave empty for permanent"))
-    .addStringOption((o) => o.setName("reason").setDescription("Shown to the player").setMaxLength(200)),
+    .addStringOption((o) => o.setName("reason").setDescription("Shown in their DM and the audit log").setMaxLength(200)),
   async execute(i) {
     await i.deferReply({ ephemeral: true });
-    const user = await target(i);
-    if (!user) return;
+    const member = i.options.getUser("member", true);
+    if (member.bot || member.id === i.user.id) {
+      await i.editReply("You can't mute that member.");
+      return;
+    }
     const seconds = parseDuration(i.options.getString("duration"));
     if (seconds === null) {
       await i.editReply("Couldn't read that duration. Use something like `30m`, `12h`, `7d` or `2w`, or leave it empty for permanent.");
       return;
     }
     const reason = i.options.getString("reason") ?? "";
-    const until = seconds === undefined ? -1 : Math.floor(Date.now() / 1000) + seconds;
+    const until = seconds === undefined ? -1 : Date.now() + seconds * 1000;
     const length = seconds === undefined ? "permanently" : `for ${formatDuration(seconds)}`;
-    try {
-      await queueAction(user.id, "mute", { Until: until, Reason: reason }, staffName(i));
-      store.setMute(user.id, { until: until === -1 ? -1 : until * 1000, reason, by: i.user.username });
-      const link = store.linkByRoblox(user.id);
-      if (link) {
-        const member = await i.client.users.fetch(link.discordId).catch(() => undefined);
-        await member?.send(`🔇 You've been muted in game ${length}${reason ? `: ${reason}` : "."}`).catch(() => undefined);
-      }
-      line("moderation", `🔇 ${i.user} muted **${user.name}** (\`${user.id}\`) ${length}${reason ? `: ${reason}` : ""}`);
-      await i.editReply(`Muted **${user.name}** ${length}. Applies right away if they're online, otherwise when they next join.`);
-    } catch (err) {
-      await i.editReply(`Failed: ${errText(err)}`);
-    }
+    const { done, failed } = await muteMember(member.id, { until, reason, by: i.user.username, at: Date.now() });
+    await member.send(`🔇 You've been muted in the Odyssey Discord servers ${length}${reason ? `: ${reason}` : "."}`).catch(() => undefined);
+    line("moderation", `🔇 ${i.user} muted ${member} ${length}${reason ? `: ${reason}` : ""}`);
+    await i.editReply(
+      `Muted ${member} ${length}` +
+        (done.length ? ` in ${done.join(", ")}.` : ". They aren't in any of the servers right now; it'll apply if they join.") +
+        (failed.length ? `\n⚠️ Couldn't time them out in ${failed.join(", ")} (the bot needs **Timeout Members** and a role above theirs).` : ""),
+    );
   },
 };
 
 export const unmute: Command = {
   staff: true,
-  data: playerOption(new SlashCommandBuilder().setName("unmute").setDescription("Unmute a player.")),
+  data: new SlashCommandBuilder()
+    .setName("unmute")
+    .setDescription("Unmute someone in every server.")
+    .addUserOption((o) => o.setName("member").setDescription("Who to unmute").setRequired(true)),
   async execute(i) {
     await i.deferReply({ ephemeral: true });
-    const user = await target(i);
-    if (!user) return;
-    try {
-      await queueAction(user.id, "unmute", {}, staffName(i));
-      store.setMute(user.id, undefined);
-      line("moderation", `🔊 ${i.user} unmuted **${user.name}** (\`${user.id}\`)`);
-      await i.editReply(`Unmuted **${user.name}**.`);
-    } catch (err) {
-      await i.editReply(`Failed: ${errText(err)}`);
-    }
+    const member = i.options.getUser("member", true);
+    const { failed } = await unmuteMember(member.id);
+    line("moderation", `🔊 ${i.user} unmuted ${member}`);
+    await i.editReply(`Unmuted ${member}.${failed.length ? ` ⚠️ Couldn't clear the timeout in ${failed.join(", ")}.` : ""}`);
   },
 };
 

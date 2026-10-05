@@ -25,7 +25,7 @@ bot  ──(DataStore "IliadPending")─────────> offline player
 | `/whois player` | moderator | Show who's linked to whom |
 | `/lookup player [raw]` | moderator | Stats, branch/rank, wipe state, warnings, ban, **data health check**, optional raw JSON |
 | `/kick`, `/warn`, `/ban [duration] [alts]` | moderator | `duration` like `30m`, `12h`, `7d`, `2w`, or blank for permanent |
-| `/mute player [duration] [reason]`, `/unmute` | moderator | Mute in game: their chat goes nowhere and they can't send pigeons (in game or from Discord). Leave `duration` empty for permanent |
+| `/mute member [duration] [reason]`, `/unmute member` | moderator | Discord mute (timeout) in the main server **and every branch server**. It follows them if they join another server or leave and rejoin. Leave `duration` empty for permanent; the bot keeps renewing it past Discord's 28-day timeout limit. Use `/unmute`, because a timeout removed by hand gets put back |
 | `/unban`, `/void`, `/rank` | admin | `/rank` updates both the game and Discord roles |
 | `/linkall` | admin | Auto-link everyone in the main server who's verified with Bloxlink / RoVer |
 | `/announce message [style]` | moderator | System chat message or shout on every server (you must be linked) |
@@ -118,7 +118,7 @@ If someone gives a rank role directly to a member of another branch, the bot rev
 1. In <https://discord.com/developers/applications>, create an application and add a **Bot**.
 2. Under **Bot**, turn on the **Server Members Intent**. Rank sync needs it.
 3. Copy the bot token and the application (client) ID.
-4. Invite the bot to the **main server and every branch server**. Use the scopes `bot` and `applications.commands`, plus the permissions **Manage Roles**, **Send Messages**, **Embed Links**, **Attach Files** and **Mention Everyone** (for PD pings).
+4. Invite the bot to the **main server and every branch server**. Use the scopes `bot` and `applications.commands`, plus the permissions **Manage Roles**, **Timeout Members** (for `/mute`), **Send Messages**, **Embed Links**, **Attach Files** and **Mention Everyone** (for PD pings).
 5. In each server, go to Server Settings → Roles and drag the bot's role **above** every branch and rank role it should manage.
 
 ### 2. Roblox Open Cloud API key
@@ -228,7 +228,7 @@ To update:
 git pull && npm install && npm run build && npm run deploy-commands && pm2 restart iliiad-bot
 ```
 
-**Back up `data/store.json`.** It holds account links, the bot-side warning history and each player's last known rank. A weekly `scp` or DigitalOcean droplet backups both work.
+**Back up `data/store.json`.** It holds account links, the bot-side warning history, Discord mutes and each player's last known rank. A weekly `scp` or DigitalOcean droplet backups both work.
 
 ## Notes
 
