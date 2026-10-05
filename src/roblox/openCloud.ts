@@ -60,10 +60,16 @@ export interface QueueRead<T> {
 }
 
 export async function readQueue<T>(queue: string, count: number, invisibility = "30s"): Promise<QueueRead<T>> {
-  return request<QueueRead<T>>(
-    "GET",
-    `${universe()}/memory-store/queues/${enc(queue)}/items:read?count=${count}&allOrNothing=false&invisibilityWindow=${invisibility}`,
-  );
+  try {
+    return await request<QueueRead<T>>(
+      "GET",
+      `${universe()}/memory-store/queues/${enc(queue)}/items:read?count=${count}&allOrNothing=false&invisibilityWindow=${invisibility}`,
+    );
+  } catch (err) {
+    // An empty (or not yet created) queue answers 404 "Queue items not found".
+    if (err instanceof OpenCloudError && err.status === 404) return {};
+    throw err;
+  }
 }
 
 export async function discardQueue(queue: string, readId: string) {
