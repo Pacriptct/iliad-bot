@@ -14,7 +14,9 @@ console.log(body.length > 3000 ? `${body.slice(0, 3000)}… (${body.length} char
 try {
   const parsed = JSON.parse(body);
   const list = parsed.items ?? parsed.queueItems ?? [];
-  console.log(`\n${list.length} item(s), readId: ${parsed.readId ?? "(none)"}`);
+  console.log(`\n${list.length} item(s)`);
+  const rest = Object.fromEntries(Object.entries(parsed).filter(([k]) => k !== "items" && k !== "queueItems"));
+  console.log("other fields:", JSON.stringify(rest));
 } catch {
   /* not JSON */
 }
