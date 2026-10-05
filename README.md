@@ -2,7 +2,7 @@
 
 Discord bot for Odyssey. It:
 
-- **Logs the game** to Discord channels: joins/leaves, chat, admin commands, every death (with cause, killer, location and what was dropped), item drops and pickups, corpse looting, titan kills, trades, crate theft, branch changes, server start/stop.
+- **Logs the game** to Discord channels: joins/leaves, chat, admin commands, every death (with cause, killer, location and what was dropped), item drops and pickups, corpse looting, titan kills, trades, crate theft, gate levers, branch changes, server start/stop. Staff actions from the in-game Event panel (music, ambience, corpse looting) are logged with admin commands.
 - **Announces PDs** (start / type / end) with a ping, and keeps a PD log (deaths, MIA).
 - **Syncs ranks both ways, across every branch's own Discord server.** Promote someone in their branch's server (give them the rank role, or `/rank` there) and their in-game rank changes. Change it in game and their roles follow in every server. See [Branch servers](#branch-servers).
 - **Handles messenger pigeons.** Letters sent in game reach linked players' DMs (with a Reply button). `/pigeon` sends a letter into the game.
@@ -147,7 +147,7 @@ In `config.json`, fill in:
 - `guildId`: your server's ID. Turn on Developer Mode in Discord, then right-click the server → Copy ID.
 - `roblox.universeId`: the experience's universe ID (shown on the Creator Dashboard).
 - `roblox.places`: a name for each place ID, e.g. `{ "Main": 1234567, "Trost": 7654321 }`. Place IDs are on the Creator Dashboard under each place. `/restart`, `/shutdown` and `/servers` use these names, and you can also type a raw place ID.
-- `channels.*`: a channel ID for each log. Leave a channel `""` to turn that log off. Several logs can share one channel. `items` covers drops and pickups of other players' drops; `loot` covers corpse looting.
+- `channels.*`: a channel ID for each log. Leave a channel `""` to turn that log off. Several logs can share one channel. `items` covers drops and pickups of other players' drops; `loot` covers corpse looting; `gates` covers who opened or closed which gate door.
 - `pdAnnouncePing`: a role ID, `"@everyone"`, `"@here"` or `""`.
 - `staffRoles`: role IDs for moderator / admin / owner.
 - For each branch under `branches.<id>`:
