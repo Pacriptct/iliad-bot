@@ -17,6 +17,16 @@ let client: Client | undefined;
 export function startChannels(c: Client) {
   client = c;
   setInterval(flush, 2000);
+  checkChannels().catch(() => undefined);
+}
+
+/** Startup check: say which logs are off and which channel ids can't be reached. */
+async function checkChannels() {
+  const off = Object.entries(config.channels).filter(([, id]) => !id).map(([k]) => k);
+  if (off.length) log.info(`logs turned off (no channel id): ${off.join(", ")}`);
+  for (const [key, id] of Object.entries(config.channels)) {
+    if (id && !(await resolve(id))) log.warn(`channels.${key}: can't reach channel ${id} (wrong id, or the bot can't see it)`);
+  }
 }
 
 function queueFor(key: ChannelKey): Pending | undefined {
@@ -67,6 +77,7 @@ async function flush() {
     if (!q.lines.length && !q.embeds.length) continue;
     const channel = await resolve(id);
     if (!channel || !("send" in channel)) {
+      log.warn(`can't post to channel ${id}: not found, not a text channel, or the bot can't see it (check the channel ids in config.json)`);
       q.lines = [];
       q.embeds = [];
       continue;

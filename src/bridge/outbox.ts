@@ -20,6 +20,9 @@ export function startOutbox() {
         const batch = item.data;
         if (!batch || !Array.isArray(batch.Events)) continue;
         const meta = { JobId: batch.JobId, PlaceId: batch.PlaceId, Studio: batch.Studio };
+        if (outboxStats.events < 200) {
+          log.info(`outbox: ${batch.Events.length} event(s) from server ${String(batch.JobId).slice(0, 8)}: ${batch.Events.map((e) => e.Type).join(", ")}`);
+        }
         for (const event of batch.Events) {
           outboxStats.events++;
           outboxStats.lastEvent = Date.now();
