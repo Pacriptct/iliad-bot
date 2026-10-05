@@ -6,6 +6,12 @@ import { dispatch, type OutboxBatch } from "./events.js";
 
 export const outboxStats = { lastPoll: 0, lastEvent: 0, events: 0, errors: 0 };
 
+const seen = new Set<string>();
+function remember(key: string) {
+  seen.add(key);
+  if (seen.size > 5000) seen.delete(seen.values().next().value as string);
+}
+
 export function startOutbox() {
   const { intervalMs, batchSize } = config.poll;
   const queue = config.roblox.outboxQueue;
@@ -16,7 +22,15 @@ export function startOutbox() {
       const read = await readQueue<OutboxBatch>(queue, batchSize);
       outboxStats.lastPoll = Date.now();
       const items = read.items ?? [];
+      let fresh = 0;
       for (const item of items) {
+        // Never handle the same queue item twice (in case a discard failed).
+        const key = item.path ?? item.id;
+        if (key) {
+          if (seen.has(key)) continue;
+          remember(key);
+        }
+        fresh++;
         const batch = item.data;
         if (!batch || !Array.isArray(batch.Events)) continue;
         const meta = { JobId: batch.JobId, PlaceId: batch.PlaceId, Studio: batch.Studio };
@@ -32,10 +46,17 @@ export function startOutbox() {
       // Discard after handling (handlers catch their own errors, so a bad event
       // can't wedge the queue).
       if (items.length) {
-        if (read.readId) await discardQueue(queue, read.readId);
-        else log.warn("outbox: read returned items but no readId, so they can't be discarded (they'll be read again)");
+        if (read.readId) {
+          await discardQueue(queue, read.readId).catch((err) => {
+            outboxStats.errors++;
+            log.warn("outbox: discard failed (events won't be reposted, but they stay in the queue):", err instanceof Error ? err.message : err);
+          });
+        } else {
+          log.warn("outbox: read returned items but no readId, so they can't be discarded (they'll be read again)");
+        }
       }
-      drained = items.length < batchSize;
+      // Only hurry back while there's a real backlog of new events.
+      drained = fresh < batchSize;
     } catch (err) {
       outboxStats.errors++;
       log.warn("outbox poll failed:", err instanceof Error ? err.message : err);

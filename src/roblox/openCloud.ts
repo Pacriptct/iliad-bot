@@ -56,7 +56,7 @@ export async function publish(message: Record<string, unknown>, topic = config.r
 
 export interface QueueRead<T> {
   readId?: string;
-  items?: { data: T }[];
+  items?: { data: T; path?: string; id?: string }[];
 }
 
 // The live API names the list `queueItems` (the published spec says `items`).
@@ -64,8 +64,8 @@ interface RawQueueRead<T> {
   readId?: string;
   read_id?: string;
   id?: string;
-  items?: { data: T }[];
-  queueItems?: { data: T }[];
+  items?: { data: T; path?: string; id?: string }[];
+  queueItems?: { data: T; path?: string; id?: string }[];
 }
 
 export async function readQueue<T>(queue: string, count: number, invisibility = "30s"): Promise<QueueRead<T>> {
@@ -83,7 +83,17 @@ export async function readQueue<T>(queue: string, count: number, invisibility = 
 }
 
 export async function discardQueue(queue: string, readId: string) {
-  await request("POST", `${universe()}/memory-store/queues/${enc(queue)}/items:discard`, { readId });
+  const path = `${universe()}/memory-store/queues/${enc(queue)}/items:discard`;
+  try {
+    await request("POST", path, { readId });
+  } catch (err) {
+    // The live API has used different field names than its spec; try `id` too.
+    if (err instanceof OpenCloudError && (err.status === 400 || err.status === 404)) {
+      await request("POST", path, { id: readId });
+      return;
+    }
+    throw err;
+  }
 }
 
 // ── DataStores ───────────────────────────────────────────────────────────────
