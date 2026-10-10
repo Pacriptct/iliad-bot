@@ -10,6 +10,7 @@ const COLORS: Record<string, number> = {
   pd_type: 0x00aaff,
   pd_death: 0xff4444,
   pd_mia: 0xffa500,
+  pd_join: 0x4ab6ff,
 };
 
 function ping(): string {
@@ -68,6 +69,9 @@ export function registerPd() {
         break;
       case "pd_mia":
         line("pdLog", `🚪 **${e.playerName}** left during the ${type} PD *(MIA)*`);
+        break;
+      case "pd_join":
+        line("pdLog", `🎭 **${e.playerName}** (staff, ${e.executorName}) joined the ${type} PD in lore`);
         break;
     }
     if (e.eventType === "pd_start" || e.eventType === "pd_end" || e.eventType === "pd_type") {
