@@ -155,6 +155,11 @@ export function registerLogs() {
     );
   });
 
+  on("gate", (e, meta) => {
+    const verb = e.Action === "close" ? "closed" : "opened";
+    line("gates", `🚪 ${name(asPlayer(e))} ${verb} **${e.Gate}** — ${e.Door}${at(meta)}`);
+  });
+
   on("crate_pick", (e) => {
     line("crates", `🔓 ${name(e.By)} picked the lock on **${e.OwnerName}**'s crate · ${Math.round((e.Chance ?? 0) * 100)}% chance`);
   });

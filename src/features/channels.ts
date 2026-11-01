@@ -27,6 +27,7 @@ const KINDS: Record<ChannelKey | "rankLog", { title: string; color: number }> = 
   loot: { title: "Corpse looting", color: 0x607d8b },
   pigeons: { title: "Pigeons", color: 0xc8a96e },
   moderation: { title: "Moderation", color: 0xe67e22 },
+  gates: { title: "Gates", color: 0x95a5a6 },
 };
 
 interface Line {

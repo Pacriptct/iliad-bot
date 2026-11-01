@@ -68,7 +68,8 @@ export interface Config {
     | "loot"
     | "pigeons"
     | "moderation"
-    | "servers",
+    | "servers"
+    | "gates",
     string
   >;
   /** Role id, "@everyone", "@here" or "" for the PD start announcement. */
@@ -139,6 +140,7 @@ config.roleRules ??= [];
 config.autoLink ??= { provider: "none", guildId: "", dm: false };
 config.autoLink.guildId ??= "";
 config.roblox.places ??= {};
+config.channels.gates ??= "";
 {
   // Older configs had a bare placeIds list.
   const legacy = (config.roblox as { placeIds?: number[] }).placeIds;
