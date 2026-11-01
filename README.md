@@ -111,6 +111,16 @@ If someone gives a rank role directly to a member of another branch, the bot rev
 
 **Note:** the bot remembers each player's branch and rank from the game. Someone who hasn't joined the game since the bot started running is "unknown" until they do, or until staff `/rank` them.
 
+## Bloodline applications
+
+Players with the Bloodline Founder pass apply in game. Each application gets a card in `channels.bloodlineReview` with **Approve**, **Request changes** and **Reject**. Changes and Reject ask for a reason; Approve takes an optional note. All of them are shown to the applicant.
+
+- **Who may decide.** Main-server staff at `bloodlineReviewTier` (default `admin`) or above, with a linked Roblox account. The game applies the decision as that Roblox account and checks its current rank in the staff group (Lore Team and up). A Discord role alone isn't enough.
+- **How it reaches the game.** The decision is added to `BloodlineReviews` in the pending DataStore, and the live servers get a nudge. If no server is running, it waits there and applies when one starts. Each decision carries the revision it was made on. The game refuses it if the applicant has revised since, or if it's the reviewer's own application.
+- **The card.** It locks while a decision is on its way. It shows the outcome however the application was decided: Discord, the Staff tab in game, or `/reviewbloodline`. A revision posts a new card and marks the old one superseded. If the game refuses a decision, the card unlocks and the reviewer gets a DM saying why.
+- **The applicant** gets a DM with the outcome and reason, if their account is linked.
+- **On startup** the bot asks the game to resend the waiting applications, so cards missed while it was down still appear.
+
 ## Setup
 
 ### 1. Discord application

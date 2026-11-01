@@ -50,6 +50,8 @@ export interface Config {
     outboxQueue: string;
     topic: string;
     pendingStore: string;
+    /** Key in pendingStore for bloodline review decisions (BotBridgeConfig.ReviewKey). */
+    reviewKey: string;
   };
   poll: { intervalMs: number; batchSize: number };
   channels: Record<
@@ -69,9 +71,12 @@ export interface Config {
     | "pigeons"
     | "moderation"
     | "servers"
-    | "gates",
+    | "gates"
+    | "bloodlineReview",
     string
   >;
+  /** Lowest main-server staff tier that may decide bloodline applications. */
+  bloodlineReviewTier: Tier;
   /** Role id, "@everyone", "@here" or "" for the PD start announcement. */
   pdAnnouncePing: string;
   staffRoles: Record<Tier, string[]>;
@@ -141,6 +146,9 @@ config.autoLink ??= { provider: "none", guildId: "", dm: false };
 config.autoLink.guildId ??= "";
 config.roblox.places ??= {};
 config.channels.gates ??= "";
+config.channels.bloodlineReview ??= "";
+config.bloodlineReviewTier ??= "admin";
+config.roblox.reviewKey ??= "BloodlineReviews";
 {
   // Older configs had a bare placeIds list.
   const legacy = (config.roblox as { placeIds?: number[] }).placeIds;

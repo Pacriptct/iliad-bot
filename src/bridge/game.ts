@@ -36,7 +36,35 @@ export async function queueAction(userId: number, kind: ActionKind, args: Record
   return action;
 }
 
+/** A staff decision on a bloodline application, made in Discord. */
+export interface BloodlineDecision {
+  Id: string;
+  AppId: string;
+  Revision: number;
+  Action: "approve" | "changes" | "reject";
+  Reason: string;
+  RobloxUserId: number;
+  RobloxName: string;
+  DiscordId: string;
+  DiscordName: string;
+  At: number;
+}
+
+/**
+ * Queue a bloodline decision (offline-safe: it waits in the pending store until
+ * a server claims it) and nudge the live servers.
+ */
+export async function queueBloodlineDecision(decision: BloodlineDecision) {
+  await updateEntry<{ Decisions: BloodlineDecision[] }>(config.roblox.pendingStore, config.roblox.reviewKey, (current) => {
+    const decisions = Array.isArray(current?.Decisions) ? current!.Decisions : [];
+    return { ...current, Decisions: [...decisions, decision] };
+  });
+  await publish({ Cmd: "bloodlineReview" });
+}
+
 export const game = {
+  /** Every server resends its waiting bloodline applications. */
+  bloodlineSync: () => publish({ Cmd: "bloodlineSync" }),
   kick: (userId: number, reason: string) => publish({ Cmd: "kick", UserId: userId, Reason: reason }),
   announce: (kind: "system" | "shout", text: string, by: string, byUserId: number) =>
     publish({ Cmd: "announce", Kind: kind, Text: text, By: by, ByUserId: byUserId }),

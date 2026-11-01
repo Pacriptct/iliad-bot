@@ -11,6 +11,8 @@ import { registerRanks } from "./features/ranks.js";
 import { registerLinking } from "./features/linking.js";
 import { registerPigeons } from "./features/pigeons.js";
 import { registerTransfers } from "./features/transfers.js";
+import { registerBloodlines } from "./features/bloodlines.js";
+import { game } from "./bridge/game.js";
 import { registerAutoLink } from "./features/autolink.js";
 import { registerMutes } from "./features/mutes.js";
 import { registerCommands } from "./commands/index.js";
@@ -27,6 +29,7 @@ registerRanks(client);
 registerLinking(client);
 registerPigeons(client);
 registerTransfers(client);
+registerBloodlines(client);
 registerAutoLink(client);
 registerMutes(client);
 registerCommands(client);
@@ -45,6 +48,8 @@ client.once(Events.ClientReady, async (c) => {
   }
   startChannels(client);
   startOutbox();
+  // Cards for bloodline applications sent while the bot was down.
+  game.bloodlineSync().catch((err) => log.warn("bloodline sync failed:", err instanceof Error ? err.message : err));
 });
 
 process.on("unhandledRejection", (err) => log.error("unhandled rejection:", err));

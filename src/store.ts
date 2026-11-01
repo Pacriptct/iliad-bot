@@ -46,6 +46,31 @@ export interface Mute {
   at: number;
 }
 
+/** A bloodline application's review card in Discord (features/bloodlines.ts). */
+export interface BloodlineCard {
+  appId: string;
+  revision: number;
+  /** The game's state (Pending, Approved, ...), or Superseded by a newer revision's card. */
+  state: string;
+  name: string;
+  surname: string;
+  lore: string;
+  ranks: string[];
+  founderName: string;
+  applicantId: number;
+  applicantName: string;
+  submittedAt: number; // seconds
+  channelId: string;
+  messageId: string;
+  /** A decision sent to the game and not answered yet. */
+  queued?: { decisionId: string; by: string; action: "approve" | "changes" | "reject"; at: number };
+  decidedBy?: string;
+  reason?: string;
+  supersededBy?: number;
+  /** Shown under the status (a refused attempt). */
+  note?: string;
+}
+
 interface Data {
   links: Record<string, Link>; // discordId -> link
   codes: Record<string, { discordId: string; expires: number }>;
@@ -53,6 +78,7 @@ interface Data {
   ranks: Record<string, KnownRank>; // robloxId -> last known branch/rank
   transfers: Record<string, Transfer>; // id -> transfer request
   mutes: Record<string, Mute>; // discordId -> Discord mute
+  bloodlineCards: Record<string, BloodlineCard>; // appId -> its latest card
 }
 
 const dir = resolve(process.cwd(), "data");
@@ -60,10 +86,18 @@ const file = resolve(dir, "store.json");
 
 function load(): Data {
   if (!existsSync(file)) {
-    return { links: {}, codes: {}, warnings: {}, ranks: {}, transfers: {}, mutes: {} };
+    return { links: {}, codes: {}, warnings: {}, ranks: {}, transfers: {}, mutes: {}, bloodlineCards: {} };
   }
   const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<Data>;
-  return { links: parsed.links ?? {}, codes: parsed.codes ?? {}, warnings: parsed.warnings ?? {}, ranks: parsed.ranks ?? {}, transfers: parsed.transfers ?? {}, mutes: parsed.mutes ?? {} };
+  return {
+    links: parsed.links ?? {},
+    codes: parsed.codes ?? {},
+    warnings: parsed.warnings ?? {},
+    ranks: parsed.ranks ?? {},
+    transfers: parsed.transfers ?? {},
+    mutes: parsed.mutes ?? {},
+    bloodlineCards: parsed.bloodlineCards ?? {},
+  };
 }
 
 const data = load();
@@ -191,6 +225,20 @@ export const store = {
       .filter((x) => x.status !== "pending")
       .sort((a, b) => b.requestedAt - a.requestedAt);
     for (const old of decided.slice(500)) delete data.transfers[old.id];
+    save();
+  },
+
+  // ── Bloodline review cards ───────────────────────────────────────────────
+  bloodlineCard(appId: string): BloodlineCard | undefined {
+    return data.bloodlineCards[appId];
+  },
+  saveBloodlineCard(card: BloodlineCard) {
+    data.bloodlineCards[card.appId] = card;
+    // Keep the last 500 decided cards.
+    const decided = Object.values(data.bloodlineCards)
+      .filter((c) => c.state !== "Pending")
+      .sort((a, b) => b.submittedAt - a.submittedAt);
+    for (const old of decided.slice(500)) delete data.bloodlineCards[old.appId];
     save();
   },
 };

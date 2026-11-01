@@ -28,6 +28,7 @@ const KINDS: Record<ChannelKey | "rankLog", { title: string; color: number }> = 
   pigeons: { title: "Pigeons", color: 0xc8a96e },
   moderation: { title: "Moderation", color: 0xe67e22 },
   gates: { title: "Gates", color: 0x95a5a6 },
+  bloodlineReview: { title: "Bloodlines", color: 0xb09878 },
 };
 
 interface Line {
