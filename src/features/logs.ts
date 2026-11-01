@@ -39,6 +39,12 @@ function deathCause(e: { Cause?: string; Killer?: string; [key: string]: unknown
       return by ? `was shot by ${by}` : "was shot";
     case "Shifter":
       return by ? `was killed by ${by}'s shifter` : "was killed by a shifter";
+    case "Steam":
+      return by ? `was scalded to death by ${by}'s Colossal` : "was scalded to death";
+    case "Executed":
+      return by ? `was executed by ${by}` : "was executed";
+    case "Explosion":
+      return by ? `was blown up by ${by}` : "was blown up";
     default:
       return "died";
   }
